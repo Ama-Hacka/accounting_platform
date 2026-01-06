@@ -1,18 +1,21 @@
  "use client";
 import { supabase } from "@/lib/supabaseClient";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export default function SignInPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const router = useRouter();
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setMessage(null);
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) setMessage(error.message);
-    else setMessage(`Signed in as ${data.user?.email}`);
+    else router.push("/dashboard");
   }
 
   return (
@@ -40,7 +43,13 @@ export default function SignInPage() {
           Sign in
         </button>
       </form>
-      {message && <p className="mt-4 text-sm text-zinc-700 dark:text-zinc-300">{message}</p>}
+      {message && <p className="mt-4 text-sm text-red-600 dark:text-red-400">{message}</p>}
+      <div className="mt-6 text-sm text-zinc-700 dark:text-zinc-300">
+        Don’t have an account?{" "}
+        <Link href="/auth/signup" className="font-medium text-pink-600 hover:underline dark:text-pink-400">
+          Sign up
+        </Link>
+      </div>
     </main>
   );
 }

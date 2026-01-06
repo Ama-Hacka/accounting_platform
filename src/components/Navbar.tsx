@@ -4,6 +4,7 @@ import Image from "next/image";
 import { CircleDollarSign, ChevronDown, Globe } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
 import { useEffect, useRef, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
 
 const navItems = [
   {
@@ -37,6 +38,23 @@ const navItems = [
 export default function Navbar() {
   const [open, setOpen] = useState<string | null>(null);
   const navRef = useRef<HTMLDivElement>(null);
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    // Check active session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     function onPointerDown(e: PointerEvent) {
@@ -116,12 +134,24 @@ export default function Navbar() {
             <Globe size={16} />
             EN–US
           </span>
-          <Link
-            href="/auth/signin"
-            className="cursor-pointer text-sm font-medium text-zinc-900 hover:underline dark:text-white"
-          >
-            Sign in
-          </Link>
+          {user ? (
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut();
+                window.location.href = "/";
+              }}
+              className="cursor-pointer text-sm font-medium text-zinc-900 hover:underline dark:text-white"
+            >
+              Sign out
+            </button>
+          ) : (
+            <Link
+              href="/auth/signin"
+              className="cursor-pointer text-sm font-medium text-zinc-900 hover:underline dark:text-white"
+            >
+              Sign in
+            </Link>
+          )}
           <ThemeToggle />
         </div>
       </nav>

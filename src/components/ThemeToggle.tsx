@@ -9,7 +9,21 @@ export default function ThemeToggle({ className }: { className?: string }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  const isDark = (mounted ? resolvedTheme : theme) === "dark";
+  if (!mounted) {
+    return (
+      <button
+        aria-label="Toggle theme"
+        className={cn(
+          "inline-flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200/60 bg-white text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-200",
+          className
+        )}
+      >
+        <div className="h-4 w-4" /> {/* Placeholder to avoid layout shift */}
+      </button>
+    );
+  }
+
+  const isDark = resolvedTheme === "dark";
 
   return (
     <button
