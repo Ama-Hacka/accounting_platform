@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { CircleDollarSign, ChevronDown, Globe } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -39,6 +40,7 @@ export default function Navbar() {
   const [open, setOpen] = useState<string | null>(null);
   const navRef = useRef<HTMLDivElement>(null);
   const [user, setUser] = useState<any>(null);
+  const pathname = usePathname();
 
   useEffect(() => {
     // Check active session
@@ -72,6 +74,7 @@ export default function Navbar() {
       document.removeEventListener("keydown", onKeyDown);
     };
   }, []);
+  if (pathname?.startsWith("/admin")) return null;
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-zinc-200/60 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/65 dark:border-white/10 dark:bg-zinc-900/80">
       <nav ref={navRef} className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
@@ -135,15 +138,46 @@ export default function Navbar() {
             EN–US
           </span>
           {user ? (
-            <button
-              onClick={async () => {
-                await supabase.auth.signOut();
-                window.location.href = "/";
-              }}
-              className="cursor-pointer text-sm font-medium text-zinc-900 hover:underline dark:text-white"
-            >
-              Sign out
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setOpen(open === "profile" ? null : "profile")}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-pink-100 text-xs font-semibold text-pink-700 hover:bg-pink-200 dark:bg-pink-900/30 dark:text-pink-300 dark:hover:bg-pink-900/50"
+              >
+                {(() => {
+                  const email = user.email || "";
+                  return email.substring(0, 2).toUpperCase();
+                })()}
+              </button>
+              {open === "profile" && (
+                <div
+                  className="absolute right-0 top-full mt-2 w-48 rounded-xl border border-zinc-200 bg-white p-2 shadow-lg dark:border-white/10 dark:bg-zinc-900"
+                  onMouseLeave={() => setOpen(null)}
+                >
+                  <ul className="flex flex-col">
+                    <li>
+                      <Link
+                        href="/dashboard"
+                        className="block cursor-pointer rounded-lg px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                      >
+                        Dashboard
+                      </Link>
+                    </li>
+                    <li>
+                      <button
+                        onClick={async () => {
+                          await supabase.auth.signOut();
+                          window.location.href = "/";
+                        }}
+                        className="block w-full text-left cursor-pointer rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-zinc-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-zinc-800"
+                      >
+                        Sign out
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+              )}
+            </div>
           ) : (
             <Link
               href="/auth/signin"

@@ -14,8 +14,22 @@ export default function SignInPage() {
     e.preventDefault();
     setMessage(null);
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) setMessage(error.message);
-    else router.push("/dashboard");
+    if (error) {
+      setMessage(error.message);
+    } else {
+      const user = data.user;
+      const firm = (user?.email || "").toLowerCase().endsWith("@icmultiservices.com");
+      let role: string | null = null;
+      if (user) {
+        const { data: prof } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+        role = prof?.role || null;
+      }
+      if (firm && (role === "owner" || role === "staff")) {
+        router.push("/admin");
+      } else {
+        router.push("/dashboard");
+      }
+    }
   }
 
   return (
