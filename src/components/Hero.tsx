@@ -6,7 +6,7 @@ export default function Hero() {
     <section className="relative isolate min-h-[80vh]">
       <div className="absolute inset-0 -z-10">
         <Image
-          src="/window.svg"
+          src="/herobanner2.png"
           alt=""
           fill
           className="object-cover"

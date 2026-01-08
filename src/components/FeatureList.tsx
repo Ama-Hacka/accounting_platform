@@ -15,6 +15,7 @@ function Item({
   onClick?: () => void;
 }) {
   return (
+    
     <div
       onClick={onClick}
       className={
@@ -42,15 +43,17 @@ export default function FeatureList({
   selected,
   onSelect,
 }: {
-  selected: "taxes" | "progress" | "run" | "grow";
-  onSelect: (key: "taxes" | "progress" | "run" | "grow") => void;
+  selected: "taxes" | "accounting" | "case" | "consulting";
+  onSelect: (key: "taxes" | "accounting" | "case" | "consulting") => void;
 }) {
   return (
+    
     <div className="flex flex-col gap-3">
-      <Item icon={<CheckCircle size={16} color="#f43f5e" />} title="Your taxes done right" active={selected === "taxes"} onClick={() => onSelect("taxes")} />
-      <Item icon={<CheckCircle size={16} color="#16a34a" />} title="Make financial progress" active={selected === "progress"} onClick={() => onSelect("progress")} />
-      <Item icon={<Rocket size={16} color="#16a34a" />} title="Run your business" active={selected === "run"} onClick={() => onSelect("run")} />
-      <Item icon={<CircleSlash size={16} color="#f59e0b" />} title="Grow your business" highlight active={selected === "grow"} onClick={() => onSelect("grow")} />
+      <Item icon={<CheckCircle size={16} color="#f43f5e" />} title="Tax Returns Preparation (Individual and business)" active={selected === "taxes"} onClick={() => onSelect("taxes")} />
+      <Item icon={<CheckCircle size={16} color="#16a34a" />} title="Accounting and Bookkeeping" active={selected === "accounting"} onClick={() => onSelect("accounting")} />
+      <Item icon={<Rocket size={16} color="#16a34a" />} title="Tax Case Resolution" active={selected === "case"} onClick={() => onSelect("case")} />
+      <Item icon={<CircleSlash size={16} color="#f59e0b" />} title="Consulting Services" highlight active={selected === "consulting"} onClick={() => onSelect("consulting")} />
     </div>
+
   );
 }

@@ -14,14 +14,12 @@ export type DetailCard = {
 
 export default function FeatureDetailPanel({
   imageSrc,
-  accentBandClass,
   statLabel,
   statValue,
   statDelta,
   card,
 }: {
   imageSrc: string;
-  accentBandClass: string;
   statLabel: string;
   statValue: string;
   statDelta: string;
@@ -31,12 +29,12 @@ export default function FeatureDetailPanel({
     <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5 dark:bg-zinc-900 dark:ring-white/10">
       <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
         <div className="relative overflow-hidden rounded-2xl">
-          <div className={`absolute inset-y-0 left-0 w-16 ${accentBandClass}`} />
+      
           <Image
             src={imageSrc}
             alt="Workspace"
-            width={640}
-            height={420}
+            width={300}
+            height={500}
             className="h-auto w-full object-cover"
           />
           <div className="absolute right-4 top-4">
