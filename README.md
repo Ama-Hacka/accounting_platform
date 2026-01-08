@@ -2,6 +2,23 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+## Environment Variables
+
+Create a `.env.local` based on `.env.example`.
+
+Required:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+Required for admin API routes:
+
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+Optional:
+
+- `NEXT_PUBLIC_SITE_URL` (used for password reset redirects; defaults to `http://localhost:3000`)
+
 First, run the development server:
 
 ```bash

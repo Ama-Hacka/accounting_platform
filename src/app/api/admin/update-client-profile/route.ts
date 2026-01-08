@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 // Verify the requesting user is an admin
 async function verifyAdmin(authHeader: string | null) {
@@ -32,6 +32,8 @@ async function verifyAdmin(authHeader: string | null) {
     return { error: "Unauthorized: Not an admin email", admin: null };
   }
 
+  const supabaseAdmin = getSupabaseAdmin();
+
   const { data: profile, error: profileError } = await supabaseAdmin
     .from("profiles")
     .select("role")
@@ -50,6 +52,8 @@ const ALLOWED_FIELDS = ["first_name", "last_name", "phone_number", "entity"];
 
 export async function POST(request: NextRequest) {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
+
     // 1. Verify admin
     const authHeader = request.headers.get("authorization");
     const { error: authError, admin } = await verifyAdmin(authHeader);

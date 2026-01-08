@@ -14,9 +14,14 @@ const industries = [
     fallbackColor: "from-amber-500 to-orange-600",
   },
   {
-    name: "Technology",
+    name: "Public Figures / Influencers",
     image: "/industries/technology.svg",
     fallbackColor: "from-blue-500 to-cyan-600",
+  },
+  {
+    name: "Furniture Store",
+    image: "/industries/furniture.svg",
+    fallbackColor: "from-slate-500 to-slate-700",
   },
   {
     name: "Construction",
@@ -24,7 +29,7 @@ const industries = [
     fallbackColor: "from-emerald-500 to-green-600",
   },
   {
-    name: "Legal",
+    name: "Beauty / Barber Shops",
     image: "/industries/legal.svg",
     fallbackColor: "from-red-700 to-red-900",
   },
@@ -41,7 +46,7 @@ export default function IndustriesSection() {
           Tailored expertise for your specific needs, providing specialized financial
           solutions across diverse sectors.
         </p>
-        <div className="mt-12 flex flex-wrap items-center justify-center gap-8 md:gap-12 lg:justify-between">
+        <div className="mt-12 grid grid-cols-1 place-items-center gap-x-12 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
           {industries.map((industry) => (
             <div key={industry.name} className="flex flex-col items-center gap-4">
               <div className="rounded-full border-2 border-pink-600 p-1">

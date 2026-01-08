@@ -2,9 +2,9 @@
 
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 
-export default function UpdatePasswordPage() {
+function UpdatePasswordContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<"verifying" | "ready" | "error">("verifying");
@@ -131,5 +131,22 @@ export default function UpdatePasswordPage() {
         </p>
       )}
     </main>
+  );
+}
+
+export default function UpdatePasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="mx-auto max-w-md px-6 pt-24">
+          <h1 className="text-2xl font-semibold">Set a new password</h1>
+          <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-300">
+            Loading…
+          </p>
+        </main>
+      }
+    >
+      <UpdatePasswordContent />
+    </Suspense>
   );
 }
