@@ -94,7 +94,10 @@ export default function Navbar() {
       document.removeEventListener("keydown", onKeyDown);
     };
   }, []);
-  if (pathname?.startsWith("/admin")) return null;
+  
+  // Hide navbar on admin and dashboard routes (dashboard has its own navbar)
+  if (pathname?.startsWith("/admin") || pathname?.startsWith("/dashboard")) return null;
+  
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-zinc-200/60 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/65 dark:border-white/10 dark:bg-zinc-900/80">
       <nav ref={navRef} className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
