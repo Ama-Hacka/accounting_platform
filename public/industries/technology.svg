@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800">
+  <defs>
+    <radialGradient id="bg" cx="45%" cy="35%" r="80%">
+      <stop offset="0%" stop-color="#2a2f3b"/>
+      <stop offset="55%" stop-color="#151a24"/>
+      <stop offset="100%" stop-color="#0b0f18"/>
+    </radialGradient>
+    <filter id="grain" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="3" stitchTiles="stitch" result="n"/>
+      <feColorMatrix in="n" type="matrix" values="0 0 0 0 0.05  0 0 0 0 0.05  0 0 0 0 0.06  0 0 0 0.6 0" result="g"/>
+      <feBlend in="SourceGraphic" in2="g" mode="overlay"/>
+    </filter>
+    <linearGradient id="chip" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f4f4f5" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#a1a1aa" stop-opacity="0.55"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="800" height="800" fill="url(#bg)"/>
+
+  <g filter="url(#grain)">
+    <!-- circuit grid -->
+    <g stroke="#e4e4e7" stroke-opacity="0.22" stroke-width="10" stroke-linecap="round">
+      <path d="M120 250h180M500 250h180"/>
+      <path d="M120 400h120M560 400h120"/>
+      <path d="M120 550h180M500 550h180"/>
+      <path d="M250 120v180M250 500v180"/>
+      <path d="M400 120v120M400 560v120"/>
+      <path d="M550 120v180M550 500v180"/>
+    </g>
+
+    <!-- chip -->
+    <rect x="260" y="260" width="280" height="280" rx="26" fill="url(#chip)"/>
+    <rect x="305" y="305" width="190" height="190" rx="18" fill="#0b0f18" opacity="0.35"/>
+
+    <!-- pins -->
+    <g fill="#e4e4e7" opacity="0.65">
+      <rect x="300" y="210" width="18" height="60" rx="9"/>
+      <rect x="360" y="210" width="18" height="60" rx="9"/>
+      <rect x="420" y="210" width="18" height="60" rx="9"/>
+      <rect x="480" y="210" width="18" height="60" rx="9"/>
+
+      <rect x="300" y="530" width="18" height="60" rx="9"/>
+      <rect x="360" y="530" width="18" height="60" rx="9"/>
+      <rect x="420" y="530" width="18" height="60" rx="9"/>
+      <rect x="480" y="530" width="18" height="60" rx="9"/>
+
+      <rect x="210" y="300" width="60" height="18" rx="9"/>
+      <rect x="210" y="360" width="60" height="18" rx="9"/>
+      <rect x="210" y="420" width="60" height="18" rx="9"/>
+      <rect x="210" y="480" width="60" height="18" rx="9"/>
+
+      <rect x="530" y="300" width="60" height="18" rx="9"/>
+      <rect x="530" y="360" width="60" height="18" rx="9"/>
+      <rect x="530" y="420" width="60" height="18" rx="9"/>
+      <rect x="530" y="480" width="60" height="18" rx="9"/>
+    </g>
+
+    <!-- highlight -->
+    <path d="M280 300c60-60 160-80 240-40" fill="none" stroke="#ffffff" stroke-opacity="0.14" stroke-width="18" stroke-linecap="round"/>
+  </g>
+
+  <radialGradient id="vig" cx="50%" cy="50%" r="60%">
+    <stop offset="65%" stop-color="#000" stop-opacity="0"/>
+    <stop offset="100%" stop-color="#000" stop-opacity="0.45"/>
+  </radialGradient>
+  <rect width="800" height="800" fill="url(#vig)"/>
+</svg>

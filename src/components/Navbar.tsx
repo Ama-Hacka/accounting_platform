@@ -40,12 +40,16 @@ export default function Navbar() {
   const [open, setOpen] = useState<string | null>(null);
   const navRef = useRef<HTMLDivElement>(null);
   const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<{ first_name?: string; last_name?: string } | null>(null);
   const pathname = usePathname();
 
   useEffect(() => {
     // Check active session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchProfile(session.user.id);
+      }
     });
 
     // Listen for auth changes
@@ -53,10 +57,26 @@ export default function Navbar() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchProfile(session.user.id);
+      } else {
+        setProfile(null);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  async function fetchProfile(userId: string) {
+    const { data } = await supabase
+      .from("profiles")
+      .select("first_name, last_name")
+      .eq("id", userId)
+      .single();
+    if (data) {
+      setProfile(data);
+    }
+  }
 
   useEffect(() => {
     function onPointerDown(e: PointerEvent) {
@@ -145,6 +165,12 @@ export default function Navbar() {
                 className="flex h-8 w-8 items-center justify-center rounded-full bg-pink-100 text-xs font-semibold text-pink-700 hover:bg-pink-200 dark:bg-pink-900/30 dark:text-pink-300 dark:hover:bg-pink-900/50"
               >
                 {(() => {
+                  const firstInitial = (profile?.first_name || "").charAt(0);
+                  const lastInitial = (profile?.last_name || "").charAt(0);
+                  if (firstInitial || lastInitial) {
+                    return `${firstInitial}${lastInitial}`.toUpperCase();
+                  }
+                  // Fallback to email if no name
                   const email = user.email || "";
                   return email.substring(0, 2).toUpperCase();
                 })()}

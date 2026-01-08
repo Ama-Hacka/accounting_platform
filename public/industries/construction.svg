@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800">
+  <defs>
+    <radialGradient id="bg" cx="45%" cy="30%" r="85%">
+      <stop offset="0%" stop-color="#2a2f3b"/>
+      <stop offset="55%" stop-color="#151a24"/>
+      <stop offset="100%" stop-color="#0b0f18"/>
+    </radialGradient>
+    <filter id="grain" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch" result="n"/>
+      <feColorMatrix in="n" type="matrix" values="0 0 0 0 0.05  0 0 0 0 0.05  0 0 0 0 0.06  0 0 0 0.6 0" result="g"/>
+      <feBlend in="SourceGraphic" in2="g" mode="overlay"/>
+    </filter>
+  </defs>
+
+  <rect width="800" height="800" fill="url(#bg)"/>
+
+  <g filter="url(#grain)" stroke="#e4e4e7" stroke-opacity="0.75" stroke-width="18" stroke-linecap="round">
+    <!-- skyline / beams -->
+    <path d="M140 580h520" />
+
+    <!-- cranes (stylized) -->
+    <path d="M250 600V220" />
+    <path d="M250 240h260" />
+    <path d="M510 240l-80 80" />
+    <path d="M430 320v120" />
+
+    <path d="M360 600V260" />
+    <path d="M360 280h220" />
+    <path d="M580 280l-60 60" />
+    <path d="M520 340v130" />
+
+    <path d="M470 600V300" />
+    <path d="M470 320h190" />
+    <path d="M660 320l-50 50" />
+    <path d="M610 370v110" />
+
+    <!-- diagonal braces -->
+    <path d="M250 430l110 110" stroke-opacity="0.35" />
+    <path d="M360 410l110 110" stroke-opacity="0.35" />
+    <path d="M470 420l140 140" stroke-opacity="0.35" />
+  </g>
+
+  <!-- haze -->
+  <rect x="0" y="520" width="800" height="220" fill="#ffffff" opacity="0.06"/>
+
+  <radialGradient id="vig" cx="50%" cy="50%" r="60%">
+    <stop offset="65%" stop-color="#000" stop-opacity="0"/>
+    <stop offset="100%" stop-color="#000" stop-opacity="0.45"/>
+  </radialGradient>
+  <rect width="800" height="800" fill="url(#vig)"/>
+</svg>

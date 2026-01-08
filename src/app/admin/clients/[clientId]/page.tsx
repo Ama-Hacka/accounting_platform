@@ -24,7 +24,10 @@ import {
   File as FileIcon,
   Trash2,
   X,
-  Plus
+  Plus,
+  KeyRound,
+  AlertTriangle,
+  Save
 } from "lucide-react";
 import imageCompression from "browser-image-compression";
 
@@ -37,6 +40,7 @@ type ClientProfile = {
   phone_number: string;
   role: string;
   entity: string;
+  preferred_language: "en" | "es" | null;
   created_at: string;
   updated_at: string;
 };
@@ -67,6 +71,8 @@ export default function ClientDetailPage() {
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [isUploadDocOpen, setIsUploadDocOpen] = useState(false);
   const [isUploadReturnOpen, setIsUploadReturnOpen] = useState(false);
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [isChangeEmailOpen, setIsChangeEmailOpen] = useState(false);
 
   // Upload State (Regular Doc)
   const [uploadDocForm, setUploadDocForm] = useState({
@@ -85,6 +91,22 @@ export default function ClientDetailPage() {
     file: null as File | null,
   });
   const [uploadingReturn, setUploadingReturn] = useState(false);
+
+  // Edit Profile State
+  const [editProfileForm, setEditProfileForm] = useState({
+    first_name: "",
+    last_name: "",
+    phone_number: "",
+    entity: "",
+  });
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  // Change Email State
+  const [changeEmailForm, setChangeEmailForm] = useState({
+    newEmail: "",
+    reason: "",
+  });
+  const [changingEmail, setChangingEmail] = useState(false);
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 8 }, (_, i) => currentYear - i);
@@ -267,6 +289,114 @@ export default function ClientDetailPage() {
     }
   }
 
+  // --- Profile Edit Handlers ---
+
+  function openEditProfile() {
+    if (profile) {
+      setEditProfileForm({
+        first_name: profile.first_name || "",
+        last_name: profile.last_name || "",
+        phone_number: profile.phone_number || "",
+        entity: profile.entity || "",
+      });
+      setIsEditProfileOpen(true);
+    }
+  }
+
+  async function handleProfileUpdate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!profile) return;
+    setSavingProfile(true);
+
+    try {
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+
+      const res = await fetch("/api/admin/update-client-profile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          clientId: profile.id,
+          updates: editProfileForm,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to update profile");
+      }
+
+      // Success - reload data
+      setIsEditProfileOpen(false);
+      await loadData();
+      alert("Profile updated successfully!");
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    } finally {
+      setSavingProfile(false);
+    }
+  }
+
+  async function handleChangeEmail(e: React.FormEvent) {
+    e.preventDefault();
+    if (!profile || !changeEmailForm.newEmail) return;
+
+    // Confirmation dialog
+    const confirmed = window.confirm(
+      `This will:\n\n` +
+      `1. Change ${profile.first_name}'s email from "${profile.email}" to "${changeEmailForm.newEmail}"\n` +
+      `2. Send a password reset link to the new email\n\n` +
+      `The client will need to click the link to set their password.\n\n` +
+      `Continue?`
+    );
+
+    if (!confirmed) return;
+
+    setChangingEmail(true);
+
+    try {
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+
+      const res = await fetch("/api/admin/update-client-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          clientId: profile.id,
+          newEmail: changeEmailForm.newEmail,
+          reason: changeEmailForm.reason,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to change email");
+      }
+
+      // Success
+      setIsChangeEmailOpen(false);
+      setChangeEmailForm({ newEmail: "", reason: "" });
+      await loadData();
+      alert(
+        data.passwordResetSent
+          ? "Email changed! A password reset link has been sent to the new email."
+          : "Email changed! However, the password reset email could not be sent. The client may need manual assistance."
+      );
+    } catch (err: any) {
+      alert("Error: " + err.message);
+    } finally {
+      setChangingEmail(false);
+    }
+  }
+
   // --- Render Helpers ---
 
   function FileIconComponent({ type, className }: { type: string, className?: string }) {
@@ -328,10 +458,20 @@ export default function ClientDetailPage() {
             </span>
           </div>
         </div>
-        <div className="flex gap-3">
-          <button className="inline-flex items-center justify-center rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">
+        <div className="flex flex-wrap gap-3">
+          <button 
+            onClick={openEditProfile}
+            className="inline-flex items-center justify-center rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+          >
             <Edit2 className="mr-2 h-4 w-4" />
             Edit Profile
+          </button>
+          <button
+            onClick={() => setIsChangeEmailOpen(true)}
+            className="inline-flex items-center justify-center rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300 dark:hover:bg-amber-900/50"
+          >
+            <KeyRound className="mr-2 h-4 w-4" />
+            Change Email / Reset Password
           </button>
           <button
             onClick={() => setIsUploadDocOpen(true)}
@@ -451,6 +591,17 @@ export default function ClientDetailPage() {
               <div>
                 <div className="text-xs font-medium uppercase text-zinc-500">Phone Number</div>
                 <div className="mt-0.5 text-sm text-zinc-900 dark:text-white">{profile.phone_number || "—"}</div>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="rounded bg-zinc-100 p-2 dark:bg-zinc-800">
+                <span className="text-xs font-bold text-zinc-500">🌐</span>
+              </div>
+              <div>
+                <div className="text-xs font-medium uppercase text-zinc-500">Preferred Language</div>
+                <div className="mt-0.5 text-sm text-zinc-900 dark:text-white">
+                  {profile.preferred_language === "es" ? "Español" : "English"}
+                </div>
               </div>
             </div>
             <div className="flex items-start gap-3">
@@ -676,6 +827,140 @@ export default function ClientDetailPage() {
                   className="flex w-full items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                 >
                   {uploadingReturn ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Upload Return"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Profile Modal */}
+      {isEditProfileOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-zinc-900">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">Edit Client Profile</h2>
+              <button onClick={() => setIsEditProfileOpen(false)} className="text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <form onSubmit={handleProfileUpdate} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">First Name</label>
+                  <input
+                    required
+                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                    value={editProfileForm.first_name}
+                    onChange={e => setEditProfileForm({...editProfileForm, first_name: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Last Name</label>
+                  <input
+                    required
+                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                    value={editProfileForm.last_name}
+                    onChange={e => setEditProfileForm({...editProfileForm, last_name: e.target.value})}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Phone Number</label>
+                <input
+                  type="tel"
+                  className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                  placeholder="(555) 123-4567"
+                  value={editProfileForm.phone_number}
+                  onChange={e => setEditProfileForm({...editProfileForm, phone_number: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Entity / Company Name</label>
+                <input
+                  className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                  placeholder="Leave blank for individual"
+                  value={editProfileForm.entity}
+                  onChange={e => setEditProfileForm({...editProfileForm, entity: e.target.value})}
+                />
+              </div>
+              <div className="rounded-lg bg-zinc-50 p-3 text-xs text-zinc-500 dark:bg-zinc-800">
+                <p>To change the client&apos;s email address, use the &quot;Change Email / Reset Password&quot; button instead.</p>
+              </div>
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  disabled={savingProfile}
+                  className="flex w-full items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-white dark:text-zinc-900"
+                >
+                  {savingProfile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <><Save className="mr-2 h-4 w-4" /> Save Changes</>}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Change Email Modal */}
+      {isChangeEmailOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-zinc-900">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">Change Client Email</h2>
+              <button onClick={() => setIsChangeEmailOpen(false)} className="text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Warning Banner */}
+            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/30">
+              <div className="flex gap-2">
+                <AlertTriangle className="h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+                <div className="text-sm text-amber-700 dark:text-amber-300">
+                  <p className="font-medium">Important Security Action</p>
+                  <p className="mt-1">This will change the client&apos;s login email and send a password reset link to the new address. Use only when the client has lost access to their original email.</p>
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={handleChangeEmail} className="space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Current Email</label>
+                <input
+                  readOnly
+                  disabled
+                  className="w-full rounded-lg border border-zinc-200 bg-zinc-100 px-3 py-2 text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800"
+                  value={profile?.email || ""}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">New Email Address</label>
+                <input
+                  type="email"
+                  required
+                  className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                  placeholder="newclient@email.com"
+                  value={changeEmailForm.newEmail}
+                  onChange={e => setChangeEmailForm({...changeEmailForm, newEmail: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Reason for Change (for audit log)</label>
+                <textarea
+                  className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                  rows={2}
+                  placeholder="e.g., Client lost access to old email account"
+                  value={changeEmailForm.reason}
+                  onChange={e => setChangeEmailForm({...changeEmailForm, reason: e.target.value})}
+                />
+              </div>
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  disabled={changingEmail || !changeEmailForm.newEmail}
+                  className="flex w-full items-center justify-center rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+                >
+                  {changingEmail ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <><KeyRound className="mr-2 h-4 w-4" /> Change Email & Send Reset Link</>}
                 </button>
               </div>
             </form>

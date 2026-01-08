@@ -122,4 +122,21 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* Ensure pointer cursor on all interactive elements */
+  button,
+  a,
+  select,
+  [role="button"],
+  [type="button"],
+  [type="submit"],
+  [type="reset"],
+  label[for],
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="file"],
+  summary,
+  [onclick],
+  [tabindex]:not([tabindex="-1"]) {
+    @apply cursor-pointer;
+  }
 }
