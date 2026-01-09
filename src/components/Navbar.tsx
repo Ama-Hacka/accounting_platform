@@ -43,6 +43,44 @@ export default function Navbar() {
   const [profile, setProfile] = useState<{ first_name?: string; last_name?: string } | null>(null);
   const pathname = usePathname();
 
+  const isStaffUser = Boolean(
+    user?.email && String(user.email).toLowerCase().endsWith("@icmultiservices.com")
+  );
+
+  const profileMenuItems: Array<{
+    label: string;
+    href?: string;
+    onClick?: () => void | Promise<void>;
+    tone?: "default" | "danger";
+  }> = isStaffUser
+    ? [
+        { label: "Admin Dashboard", href: "/admin" },
+        { label: "Clients", href: "/admin/clients" },
+        { label: "Settings", href: "/admin/settings" },
+        {
+          label: "Sign out",
+          tone: "danger",
+          onClick: async () => {
+            await supabase.auth.signOut();
+            window.location.href = "/";
+          },
+        },
+      ]
+    : [
+        { label: "Dashboard", href: "/dashboard" },
+        { label: "Profile", href: "/dashboard?tab=profile" },
+        { label: "Documents", href: "/dashboard?tab=documents" },
+        { label: "Taxes", href: "/dashboard?tab=taxes" },
+        {
+          label: "Sign out",
+          tone: "danger",
+          onClick: async () => {
+            await supabase.auth.signOut();
+            window.location.href = "/";
+          },
+        },
+      ];
+
   useEffect(() => {
     // Check active session
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -94,7 +132,7 @@ export default function Navbar() {
       document.removeEventListener("keydown", onKeyDown);
     };
   }, []);
-  
+
   // Hide navbar on admin and dashboard routes (dashboard has its own navbar)
   if (pathname?.startsWith("/admin") || pathname?.startsWith("/dashboard")) return null;
   
@@ -165,7 +203,9 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={() => setOpen(open === "profile" ? null : "profile")}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-pink-100 text-xs font-semibold text-pink-700 hover:bg-pink-200 dark:bg-pink-900/30 dark:text-pink-300 dark:hover:bg-pink-900/50"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-red-100 text-xs font-semibold text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/50"
+                aria-expanded={open === "profile"}
+                aria-haspopup="menu"
               >
                 {(() => {
                   const firstInitial = (profile?.first_name || "").charAt(0);
@@ -184,25 +224,36 @@ export default function Navbar() {
                   onMouseLeave={() => setOpen(null)}
                 >
                   <ul className="flex flex-col">
-                    <li>
-                      <Link
-                        href="/dashboard"
-                        className="block cursor-pointer rounded-lg px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                      >
-                        Dashboard
-                      </Link>
-                    </li>
-                    <li>
-                      <button
-                        onClick={async () => {
-                          await supabase.auth.signOut();
-                          window.location.href = "/";
-                        }}
-                        className="block w-full text-left cursor-pointer rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-zinc-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-zinc-800"
-                      >
-                        Sign out
-                      </button>
-                    </li>
+                    {profileMenuItems.map((item) => {
+                      const baseClassName =
+                        item.tone === "danger"
+                          ? "block w-full text-left cursor-pointer rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-zinc-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-zinc-800"
+                          : "block cursor-pointer rounded-lg px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800";
+
+                      return (
+                        <li key={item.label}>
+                          {item.href ? (
+                            <Link
+                              href={item.href}
+                              onClick={() => setOpen(null)}
+                              className={baseClassName}
+                            >
+                              {item.label}
+                            </Link>
+                          ) : (
+                            <button
+                              onClick={async () => {
+                                setOpen(null);
+                                await item.onClick?.();
+                              }}
+                              className={baseClassName}
+                            >
+                              {item.label}
+                            </button>
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               )}

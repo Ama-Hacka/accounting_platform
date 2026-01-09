@@ -258,7 +258,7 @@ export default function DocumentsTab({
           placeholder="Search documents..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full rounded-xl border border-zinc-200 bg-white pl-10 pr-4 py-3 text-sm placeholder:text-zinc-400 focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+          className="w-full rounded-xl border border-zinc-200 bg-white pl-10 pr-4 py-3 text-sm placeholder:text-zinc-400 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
         />
       </div>
 
@@ -289,8 +289,8 @@ export default function DocumentsTab({
                     className="flex items-center justify-between rounded-xl border border-zinc-100 bg-zinc-50 p-4 hover:bg-zinc-100 transition-colors dark:border-zinc-800 dark:bg-zinc-800/50 dark:hover:bg-zinc-800"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-pink-100 dark:bg-pink-900/30">
-                        <FileText className="h-5 w-5 text-pink-600 dark:text-pink-400" />
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 dark:bg-red-900/30">
+                        <FileText className="h-5 w-5 text-red-600 dark:text-red-400" />
                       </div>
                       <div>
                         <p className="text-sm font-medium text-zinc-900 dark:text-white">
@@ -344,7 +344,7 @@ export default function DocumentsTab({
 
           {filteredTaxReturns.length > 0 && (
             <div className="p-4 border-t border-zinc-100 dark:border-zinc-800">
-              <button className="text-sm font-medium text-pink-600 hover:text-pink-500 dark:text-pink-400">
+              <button className="text-sm font-medium text-red-600 hover:text-red-700 dark:text-red-400">
                 View All Firm Documents
               </button>
             </div>
@@ -432,7 +432,7 @@ export default function DocumentsTab({
               onDrop={handleDrop}
               className={`relative rounded-xl border-2 border-dashed p-6 text-center transition-colors ${
                 dragActive
-                  ? "border-pink-500 bg-pink-50 dark:bg-pink-900/10"
+                  ? "border-red-500 bg-red-50 dark:bg-red-900/10"
                   : uploadForm.file
                   ? "border-green-500 bg-green-50 dark:bg-green-900/10"
                   : "border-zinc-300 hover:border-zinc-400 dark:border-zinc-700 dark:hover:border-zinc-600"
@@ -475,7 +475,7 @@ export default function DocumentsTab({
                     <button
                       onClick={handleUpload}
                       disabled={uploading}
-                      className="inline-flex items-center gap-2 rounded-lg bg-pink-600 px-4 py-2 text-sm font-semibold text-white hover:bg-pink-500 disabled:opacity-50"
+                      className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
                     >
                       {uploading ? (
                         <>
@@ -522,8 +522,8 @@ export default function DocumentsTab({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-zinc-900">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-pink-100 dark:bg-pink-900/30">
-              <FileText className="h-5 w-5 text-pink-600 dark:text-pink-400" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 dark:bg-red-900/30">
+              <FileText className="h-5 w-5 text-red-600 dark:text-red-400" />
             </div>
             <div>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">

@@ -29,8 +29,25 @@ export default function DashboardPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [email, setEmail] = useState("");
 
+  const currentYear = new Date().getFullYear();
+  const defaultTaxYear = currentYear - 1;
+  const [selectedTaxYear, setSelectedTaxYear] = useState<number>(defaultTaxYear);
+
   // Tab state
   const [activeTab, setActiveTab] = useState<TabType>("dashboard");
+
+  const handleTabChange = useCallback(
+    (tab: TabType) => {
+      setActiveTab(tab);
+      if (typeof window === "undefined") return;
+      const params = new URLSearchParams(window.location.search);
+      if (tab === "dashboard") params.delete("tab");
+      else params.set("tab", tab);
+      const query = params.toString();
+      router.replace(query ? `/dashboard?${query}` : "/dashboard");
+    },
+    [router]
+  );
 
   // Data states
   const [documents, setDocuments] = useState<any[]>([]);
@@ -43,10 +60,24 @@ export default function DashboardPage() {
   const [questionnaireStatus, setQuestionnaireStatus] = useState<"not_started" | "in_progress" | "submitted">("not_started");
   const [questionnaireProgress, setQuestionnaireProgress] = useState(0);
 
-  const currentYear = new Date().getFullYear();
-
   useEffect(() => {
     getProfile();
+  }, []);
+
+  // Support deep-linking into tabs: /dashboard?tab=profile
+  useEffect(() => {
+    function syncTabFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get("tab");
+      if (tab === "profile" || tab === "taxes" || tab === "documents" || tab === "dashboard") {
+        setActiveTab(tab as TabType);
+      }
+    }
+
+    // Initial sync + support back/forward navigation
+    syncTabFromUrl();
+    window.addEventListener("popstate", syncTabFromUrl);
+    return () => window.removeEventListener("popstate", syncTabFromUrl);
   }, []);
 
   // Fetch all data when user is available
@@ -56,15 +87,8 @@ export default function DashboardPage() {
     }
   }, [user]);
 
-  // Re-check engagement status whenever documents change
-  useEffect(() => {
-    if (user && documents) {
-      checkEngagementStatus(user.id);
-    }
-  }, [user, documents]);
-
   // Check engagement letter status from database
-  async function checkEngagementStatus(userId: string) {
+  async function checkEngagementStatus(userId: string, taxYear: number) {
     try {
       // Add timestamp to prevent any potential caching
       const { data, error } = await supabase
@@ -72,13 +96,13 @@ export default function DashboardPage() {
         .select("id, created_at")
         .eq("user_id", userId)
         .eq("doctype", "Engagement Letter")
-        .eq("year", currentYear)
+        .eq("year", taxYear)
         .maybeSingle();
 
       // Debug logging - check browser console
       console.log("[Engagement Check]", {
         userId,
-        year: currentYear,
+        year: taxYear,
         data,
         error,
         hasEngagement: data !== null && !error
@@ -92,12 +116,18 @@ export default function DashboardPage() {
     }
   }
 
+  // Re-check engagement status whenever documents or selected tax year change
+  useEffect(() => {
+    if (!user) return;
+    checkEngagementStatus(user.id, selectedTaxYear);
+  }, [user, documents, selectedTaxYear]);
+
   // Fetch all data at once
   async function fetchAllData(userId: string) {
     await Promise.all([
       fetchDocuments(userId),
       fetchTaxReturns(userId),
-      checkEngagementStatus(userId)
+      checkEngagementStatus(userId, selectedTaxYear)
     ]);
   }
 
@@ -217,9 +247,9 @@ export default function DashboardPage() {
   const handleEngagementSigned = useCallback(() => {
     if (user) {
       fetchDocuments(user.id);
-      checkEngagementStatus(user.id);
+      checkEngagementStatus(user.id, selectedTaxYear);
     }
-  }, [user]);
+  }, [user, selectedTaxYear]);
 
   const handleDocumentUploaded = () => {
     if (user) {
@@ -228,7 +258,7 @@ export default function DashboardPage() {
   };
 
   const handleNavigateToTaxes = () => {
-    setActiveTab("taxes");
+    handleTabChange("taxes");
   };
 
   if (loading) {
@@ -247,7 +277,7 @@ export default function DashboardPage() {
       {/* Custom Dashboard Navbar */}
       <DashboardNavbar
         activeTab={activeTab}
-        onTabChange={(tab) => setActiveTab(tab as TabType)}
+        onTabChange={(tab) => handleTabChange(tab as TabType)}
         user={user}
         profile={profile}
       />
@@ -286,6 +316,8 @@ export default function DashboardPage() {
             questionnaireStatus={questionnaireStatus}
             questionnaireProgress={questionnaireProgress}
             onStatusChange={handleQuestionnaireStatusChange}
+            selectedTaxYear={selectedTaxYear}
+            onSelectedTaxYearChange={setSelectedTaxYear}
           />
         )}
 

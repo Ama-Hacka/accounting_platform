@@ -25,9 +25,9 @@ export default function Footer() {
           {/* Brand Column */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <Image src="/logo.png" alt="IC Multi-Services" width={32} height={32} />
+              <Image src="/globe.png" alt="IC Multi-Services" width={32} height={32} />
               <span className="text-lg font-semibold text-zinc-900 dark:text-white">
-                IC Multi-Services
+                IC Multi Services
               </span>
             </div>
             <p className="text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
@@ -39,7 +39,7 @@ export default function Footer() {
                 href="https://icmultiservices.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-300 text-zinc-600 transition-colors hover:border-pink-500 hover:text-pink-500 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-pink-400 dark:hover:text-pink-400"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-300 text-zinc-600 transition-colors hover:border-red-500 hover:text-red-600 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-red-400 dark:hover:text-red-400"
                 aria-label="Website"
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -49,7 +49,7 @@ export default function Footer() {
               </a>
               <a
                 href="mailto:accounting@icmultiservices.com"
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-300 text-zinc-600 transition-colors hover:border-pink-500 hover:text-pink-500 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-pink-400 dark:hover:text-pink-400"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-300 text-zinc-600 transition-colors hover:border-red-500 hover:text-red-600 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-red-400 dark:hover:text-red-400"
                 aria-label="Email"
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -67,7 +67,7 @@ export default function Footer() {
                 <li key={item.name}>
                   <Link
                     href={item.href}
-                    className="text-sm text-zinc-600 transition-colors hover:text-pink-600 dark:text-zinc-400 dark:hover:text-pink-400"
+                    className="text-sm text-zinc-600 transition-colors hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400"
                   >
                     {item.name}
                   </Link>
@@ -84,7 +84,7 @@ export default function Footer() {
                 <li key={item.name}>
                   <Link
                     href={item.href}
-                    className="text-sm text-zinc-600 transition-colors hover:text-pink-600 dark:text-zinc-400 dark:hover:text-pink-400"
+                    className="text-sm text-zinc-600 transition-colors hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400"
                   >
                     {item.name}
                   </Link>
@@ -103,11 +103,11 @@ export default function Footer() {
               <input
                 type="email"
                 placeholder="Email address"
-                className="flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-500 focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white dark:placeholder-zinc-500"
+                className="flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-500 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white dark:placeholder-zinc-500"
               />
               <button
                 type="submit"
-                className="flex h-10 w-10 items-center justify-center rounded-lg bg-pink-600 text-white transition-colors hover:bg-pink-500"
+                className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-600 text-white transition-colors hover:bg-red-700"
                 aria-label="Subscribe"
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -126,13 +126,13 @@ export default function Footer() {
           <div className="flex gap-6">
             <Link
               href="/privacy"
-              className="text-sm text-zinc-500 transition-colors hover:text-pink-600 dark:text-zinc-500 dark:hover:text-pink-400"
+              className="text-sm text-zinc-500 transition-colors hover:text-red-600 dark:text-zinc-500 dark:hover:text-red-400"
             >
               Privacy Policy
             </Link>
             <Link
               href="/terms"
-              className="text-sm text-zinc-500 transition-colors hover:text-pink-600 dark:text-zinc-500 dark:hover:text-pink-400"
+              className="text-sm text-zinc-500 transition-colors hover:text-red-600 dark:text-zinc-500 dark:hover:text-red-400"
             >
               Terms of Service
             </Link>

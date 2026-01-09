@@ -1,6 +1,6 @@
  "use client";
 import { supabase } from "@/lib/supabaseClient";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 
 export default function SignUpPage() {
@@ -14,7 +14,7 @@ export default function SignUpPage() {
   const [preferredLanguage, setPreferredLanguage] = useState<"en" | "es">("en");
   const [message, setMessage] = useState<string | null>(null);
 
-  async function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setMessage(null);
     const { data, error } = await supabase.auth.signUp({
@@ -99,7 +99,7 @@ export default function SignUpPage() {
                 onClick={() => setAccountType("individual")}
                 className={`flex-1 px-3 py-2 text-sm transition-colors ${
                   accountType === "individual"
-                    ? "bg-pink-600 text-white"
+                    ? "bg-red-600 text-white"
                     : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                 }`}
               >
@@ -107,10 +107,9 @@ export default function SignUpPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setAccountType("business")}
                 className={`flex-1 px-3 py-2 text-sm transition-colors border-l border-zinc-200 dark:border-white/15 ${
                   accountType === "business"
-                    ? "bg-pink-600 text-white"
+                    ? "bg-red-600 text-white"
                     : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                 }`}
               >
@@ -128,7 +127,7 @@ export default function SignUpPage() {
                 onClick={() => setPreferredLanguage("en")}
                 className={`flex-1 px-3 py-2 text-sm transition-colors ${
                   preferredLanguage === "en"
-                    ? "bg-pink-600 text-white"
+                    ? "bg-red-600 text-white"
                     : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                 }`}
               >
@@ -139,7 +138,7 @@ export default function SignUpPage() {
                 onClick={() => setPreferredLanguage("es")}
                 className={`flex-1 px-3 py-2 text-sm transition-colors border-l border-zinc-200 dark:border-white/15 ${
                   preferredLanguage === "es"
-                    ? "bg-pink-600 text-white"
+                    ? "bg-red-600 text-white"
                     : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                 }`}
               >
@@ -150,7 +149,7 @@ export default function SignUpPage() {
         </div>
         <button
           type="submit"
-          className="w-full rounded-full bg-pink-600 px-4 py-2 text-sm font-semibold text-white hover:bg-pink-500"
+          className="w-full rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
         >
           Sign up
         </button>

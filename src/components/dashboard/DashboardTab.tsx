@@ -30,6 +30,7 @@ export default function DashboardTab({
   questionnaireProgress,
 }: DashboardTabProps) {
   const currentYear = new Date().getFullYear();
+  const taxYear = currentYear - 1;
   const displayName = profile?.first_name || user?.email?.split("@")[0] || "there";
 
   // Get last year's tax return if available
@@ -85,7 +86,7 @@ export default function DashboardTab({
                   </span>
                 </div>
                 <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">
-                  {currentYear} Tax Questionnaire
+                  {taxYear} Tax Questionnaire
                 </h2>
                 <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
                   Complete your annual questionnaire to begin your tax filing process.
@@ -100,7 +101,7 @@ export default function DashboardTab({
                     </div>
                     <div className="h-2 w-full rounded-full bg-zinc-100 dark:bg-zinc-800">
                       <div 
-                        className="h-2 rounded-full bg-pink-600 transition-all duration-300"
+                        className="h-2 rounded-full bg-red-600 transition-all duration-300"
                         style={{ width: `${questionnaireProgress}%` }}
                       />
                     </div>
@@ -109,15 +110,15 @@ export default function DashboardTab({
 
                 <button
                   onClick={onNavigateToTaxes}
-                  className="mt-6 inline-flex items-center gap-2 rounded-lg bg-pink-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-pink-500"
+                  className="mt-6 inline-flex items-center gap-2 rounded-lg bg-red-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-red-700"
                 >
                   {status.buttonText}
                   <ArrowRight size={16} />
                 </button>
               </div>
               <div className="hidden sm:block ml-6">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-pink-100 dark:bg-pink-900/30">
-                  <ClipboardList className="h-8 w-8 text-pink-600 dark:text-pink-400" />
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-red-100 dark:bg-red-900/30">
+                  <ClipboardList className="h-8 w-8 text-red-600 dark:text-red-400" />
                 </div>
               </div>
             </div>
@@ -125,7 +126,7 @@ export default function DashboardTab({
             <div className="mt-6 pt-4 border-t border-zinc-100 dark:border-zinc-800">
               <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
                 <Calendar size={14} />
-                <span>Due date: April 15, {currentYear + 1}</span>
+                <span>Due date: April 15, {taxYear + 1}</span>
               </div>
             </div>
           </div>
@@ -138,7 +139,7 @@ export default function DashboardTab({
               </h2>
               <button 
                 onClick={onNavigateToTaxes}
-                className="text-sm font-medium text-pink-600 hover:text-pink-500 dark:text-pink-400"
+                className="text-sm font-medium text-red-600 hover:text-red-700 dark:text-red-400"
               >
                 View All
               </button>
@@ -152,8 +153,8 @@ export default function DashboardTab({
                     className="flex items-center justify-between rounded-lg border border-zinc-100 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-800/50"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-pink-100 dark:bg-pink-900/30">
-                        <FileText className="h-5 w-5 text-pink-600 dark:text-pink-400" />
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 dark:bg-red-900/30">
+                        <FileText className="h-5 w-5 text-red-600 dark:text-red-400" />
                       </div>
                       <div>
                         <p className="text-sm font-medium text-zinc-900 dark:text-white">
@@ -186,23 +187,23 @@ export default function DashboardTab({
         {/* Right Sidebar */}
         <div className="space-y-6">
           {/* Important Notices */}
-          <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-pink-50 to-white p-6 shadow-sm dark:border-pink-900/50 dark:from-pink-900/20 dark:to-zinc-900">
+          <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-red-50 to-white p-6 shadow-sm dark:border-red-900/50 dark:from-red-900/20 dark:to-zinc-900">
             <div className="flex items-center gap-2 mb-4">
-              <Bell className="h-5 w-5 text-pink-600 dark:text-pink-400" />
+              <Bell className="h-5 w-5 text-red-600 dark:text-red-400" />
               <h3 className="font-semibold text-zinc-900 dark:text-white">
                 Important Notices
               </h3>
             </div>
 
             <div className="space-y-4">
-              <div className="border-b border-pink-100 pb-4 dark:border-pink-900/30">
+              <div className="border-b border-red-100 pb-4 dark:border-red-900/30">
                 <h4 className="text-sm font-medium text-zinc-900 dark:text-white">
                   New Tax Laws for {currentYear}
                 </h4>
                 <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
                   Review the changes that might impact your small business filings this year.
                 </p>
-                <button className="mt-2 text-xs font-medium text-pink-600 hover:text-pink-500 dark:text-pink-400">
+                <button className="mt-2 text-xs font-medium text-red-600 hover:text-red-700 dark:text-red-400">
                   Read more
                 </button>
               </div>
@@ -258,13 +259,13 @@ export default function DashboardTab({
 
           {/* Need Help Card */}
           <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-zinc-900">
-            <h3 className="font-semibold text-pink-600 dark:text-pink-400 mb-2">
+            <h3 className="font-semibold text-red-600 dark:text-red-400 mb-2">
               Need help?
             </h3>
             <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
               Your dedicated accountant is here to assist you with any questions.
             </p>
-            <button className="w-full rounded-lg border-2 border-pink-600 px-4 py-2.5 text-sm font-medium text-pink-600 transition-colors hover:bg-pink-50 dark:border-pink-500 dark:text-pink-400 dark:hover:bg-pink-900/20">
+            <button className="w-full rounded-lg border-2 border-red-600 px-4 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:border-red-500 dark:text-red-400 dark:hover:bg-red-900/20">
               Message Your Advisor
             </button>
           </div>

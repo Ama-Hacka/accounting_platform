@@ -40,7 +40,7 @@ async function verifyAdmin(authHeader: string | null) {
     .eq("id", user.id)
     .single();
 
-  if (profileError || !profile || !["owner", "staff"].includes(profile.role)) {
+  if (profileError || !profile || !["owner", "admin", "staff"].includes(profile.role)) {
     return { error: "Unauthorized: Not an admin role", admin: null };
   }
 

@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function AdminClientsPage() {
+  const router = useRouter();
   const [clients, setClients] = useState<any[]>([]);
   const [query, setQuery] = useState("");
   const [filterType, setFilterType] = useState<"all" | "W2" | "1099" | "1040">("all");
@@ -185,7 +187,25 @@ export default function AdminClientsPage() {
               return matchDocs || matchReturns;
             })
             .map((c) => (
-            <li key={c.id} className="grid grid-cols-12 items-center gap-4 border-t border-zinc-100 px-6 py-4 dark:border-zinc-800">
+            <li
+              key={c.id}
+              role="button"
+              tabIndex={0}
+              onClick={(e) => {
+                if (e.defaultPrevented) return;
+                const target = e.target as HTMLElement | null;
+                // Don't hijack clicks intended for interactive elements inside the row.
+                if (target?.closest("a,button,input,select,textarea")) return;
+                router.push(`/admin/clients/${c.id}`);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  router.push(`/admin/clients/${c.id}`);
+                }
+              }}
+              className="grid cursor-pointer grid-cols-12 items-center gap-4 border-t border-zinc-100 px-6 py-4 outline-none hover:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-pink-500 dark:border-zinc-800 dark:hover:bg-white/5"
+            >
               <div className="col-span-3 flex items-center gap-3">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 text-xs font-semibold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
                   {initials(c)}

@@ -5,32 +5,32 @@ import Image from "next/image";
 const industries = [
   {
     name: "Modeling",
-    image: "/industries/modeling.svg",
+    image: "/industries/modeling.webp",
     fallbackColor: "from-pink-500 to-rose-600",
   },
   {
     name: "Restaurants",
-    image: "/industries/restaurants.svg",
+    image: "/industries/restaurants.webp",
     fallbackColor: "from-amber-500 to-orange-600",
   },
   {
     name: "Public Figures / Influencers",
-    image: "/industries/technology.svg",
+    image: "/industries/Influencers.webp",
     fallbackColor: "from-blue-500 to-cyan-600",
   },
   {
     name: "Furniture Store",
-    image: "/industries/furniture.svg",
+    image: "/industries/furniture.webp",
     fallbackColor: "from-slate-500 to-slate-700",
   },
   {
     name: "Construction",
-    image: "/industries/construction.svg",
+    image: "/industries/construction.webp",
     fallbackColor: "from-emerald-500 to-green-600",
   },
   {
     name: "Beauty / Barber Shops",
-    image: "/industries/legal.svg",
+    image: "/barbershop.webp",
     fallbackColor: "from-red-700 to-red-900",
   },
 ];
@@ -49,21 +49,19 @@ export default function IndustriesSection() {
         <div className="mt-12 grid grid-cols-1 place-items-center gap-x-12 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
           {industries.map((industry) => (
             <div key={industry.name} className="flex flex-col items-center gap-4">
-              <div className="rounded-full border-2 border-pink-600 p-1">
-                <div
-                  className={`relative h-32 w-32 overflow-hidden rounded-full border border-slate-700 bg-gradient-to-br ${industry.fallbackColor} md:h-40 md:w-40`}
-                >
+              <div
+                className={`relative h-36 w-36 overflow-hidden rounded-full border-[3px] border-pink-600 bg-gradient-to-br ${industry.fallbackColor} md:h-44 md:w-44`}
+              >
                 <Image
                   src={industry.image}
                   alt={industry.name}
                   fill
-                  className="object-cover grayscale transition-all duration-300 hover:grayscale-0"
+                  className="object-cover object-center grayscale transition-all duration-300 hover:grayscale-0"
+                  sizes="(max-width: 768px) 144px, 176px"
                   onError={(e) => {
-                    // Hide the image if it fails to load, showing the gradient background
-                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.style.display = "none";
                   }}
                 />
-                </div>
               </div>
               <span className="text-xs font-semibold uppercase tracking-wider text-white">
                 {industry.name}

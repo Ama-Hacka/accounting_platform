@@ -1,285 +1,335 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 export default function AdminHomePage() {
-  const router = useRouter();
-  const [clients, setClients] = useState<any[]>([]);
-  const [query, setQuery] = useState("");
-  const [filterType, setFilterType] = useState<"all" | "W2" | "1099" | "1040">("all");
   const currentYear = new Date().getFullYear();
-  const [year, setYear] = useState<"all" | number>(currentYear);
-  const years = Array.from({ length: 8 }, (_, i) => currentYear - i);
-  const [returnsByClient, setReturnsByClient] = useState<Record<string, any[]>>({});
-  const [docsByClient, setDocsByClient] = useState<Record<string, any[]>>({});
+  const taxYear = currentYear - 1;
+  const quarter = Math.floor(new Date().getMonth() / 3) + 1;
+  const periodLabel = `FY ${currentYear}-Q${quarter}`;
+
+  type Activity = {
+    id: string;
+    user_id: string;
+    doctype: string;
+    title: string;
+    created_at: string;
+  };
+
+  const [loading, setLoading] = useState(true);
+  const [totalClients, setTotalClients] = useState(0);
+  const [pendingSignature, setPendingSignature] = useState(0);
+  const [signedEngagement, setSignedEngagement] = useState(0);
+  const [questionnaireCompleted, setQuestionnaireCompleted] = useState(0);
+  const [docsUploaded, setDocsUploaded] = useState(0);
+  const [completedAllThree, setCompletedAllThree] = useState(0);
+  const [inProgress, setInProgress] = useState(0);
+  const [filedClients, setFiledClients] = useState(0);
+  const [recentActivity, setRecentActivity] = useState<Array<Activity & { name: string }>>([]);
+
+  function displayNameFromProfile(p: any) {
+    const name = `${p?.first_name || ""} ${p?.last_name || ""}`.trim();
+    return name || p?.email || "Client";
+  }
+
+  function timeAgo(iso: string) {
+    const dt = new Date(iso);
+    const diffMs = Date.now() - dt.getTime();
+    const minutes = Math.floor(diffMs / (1000 * 60));
+    if (minutes < 1) return "just now";
+    if (minutes === 1) return "1 minute ago";
+    if (minutes < 60) return `${minutes} minutes ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours === 1) return "1 hour ago";
+    if (hours < 24) return `${hours} hours ago`;
+    const days = Math.floor(hours / 24);
+    if (days === 1) return "1 day ago";
+    return `${days} days ago`;
+  }
+
+  function activityText(doctype: string) {
+    if (doctype === "Engagement Letter") return "signed Engagement Letter";
+    if (doctype === "Tax Questionnaire") return "submitted Tax Questionnaire";
+    return `uploaded ${doctype || "document"}`;
+  }
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
+      try {
+        const { data: clientRows, error: clientErr } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("role", "client");
+
+        if (clientErr) throw clientErr;
+
+        const clientIds = (clientRows || []).map((r: any) => r.id);
+        const clientIdSet = new Set<string>(clientIds);
+        const total = clientIds.length;
+
+        const [engRes, qRes, otherDocsRes, trRes, activityRes] = await Promise.all([
+          supabase
+            .from("user_documents")
+            .select("user_id")
+            .eq("year", taxYear)
+            .eq("doctype", "Engagement Letter"),
+          supabase
+            .from("user_documents")
+            .select("user_id")
+            .eq("year", taxYear)
+            .eq("doctype", "Tax Questionnaire"),
+          supabase
+            .from("user_documents")
+            .select("user_id")
+            .eq("year", taxYear)
+            .not("doctype", "in", '("Engagement Letter","Tax Questionnaire")'),
+          supabase
+            .from("tax_returns")
+            .select("user_id")
+            .eq("year", taxYear),
+          supabase
+            .from("user_documents")
+            .select("id, user_id, doctype, title, created_at")
+            .eq("year", taxYear)
+            .order("created_at", { ascending: false })
+            .limit(8),
+        ]);
+
+        if (engRes.error) throw engRes.error;
+        if (qRes.error) throw qRes.error;
+        if (otherDocsRes.error) throw otherDocsRes.error;
+        if (trRes.error) throw trRes.error;
+        if (activityRes.error) throw activityRes.error;
+
+        const engagementSet = new Set<string>();
+        for (const row of engRes.data || []) {
+          if (clientIdSet.has((row as any).user_id)) engagementSet.add((row as any).user_id);
+        }
+
+        const questionnaireSet = new Set<string>();
+        for (const row of qRes.data || []) {
+          if (clientIdSet.has((row as any).user_id)) questionnaireSet.add((row as any).user_id);
+        }
+
+        const uploadedSet = new Set<string>();
+        for (const row of otherDocsRes.data || []) {
+          if (clientIdSet.has((row as any).user_id)) uploadedSet.add((row as any).user_id);
+        }
+
+        const filedSet = new Set<string>();
+        for (const row of trRes.data || []) {
+          if (clientIdSet.has((row as any).user_id)) filedSet.add((row as any).user_id);
+        }
+
+        let completed = 0;
+        for (const clientId of clientIds) {
+          if (engagementSet.has(clientId) && questionnaireSet.has(clientId) && uploadedSet.has(clientId)) {
+            completed += 1;
+          }
+        }
+
+        const inProg = Math.max(0, completed - filedSet.size);
+
+        // Resolve names for recent activity
+        const activity = (activityRes.data || []) as Activity[];
+        const activityUserIds = Array.from(new Set(activity.map((a) => a.user_id))).filter((id) => clientIdSet.has(id));
+        const { data: activityProfiles, error: activityProfilesErr } = await supabase
+          .from("profiles")
+          .select("id, first_name, last_name, email")
+          .in("id", activityUserIds.length ? activityUserIds : ["00000000-0000-0000-0000-000000000000"]);
+        if (activityProfilesErr) throw activityProfilesErr;
+
+        const nameById = new Map<string, string>();
+        for (const p of activityProfiles || []) {
+          nameById.set((p as any).id, displayNameFromProfile(p));
+        }
+
+        const recent = activity
+          .filter((a) => clientIdSet.has(a.user_id))
+          .map((a) => ({ ...a, name: nameById.get(a.user_id) || "Client" }));
+
+        if (cancelled) return;
+        setTotalClients(total);
+        setPendingSignature(Math.max(0, total - engagementSet.size));
+        setSignedEngagement(engagementSet.size);
+        setQuestionnaireCompleted(questionnaireSet.size);
+        setDocsUploaded(uploadedSet.size);
+        setCompletedAllThree(completed);
+        setFiledClients(filedSet.size);
+        setInProgress(inProg);
+        setRecentActivity(recent);
+      } catch (err) {
+        console.error("Admin dashboard load error:", err);
+        if (!cancelled) {
+          setTotalClients(0);
+          setPendingSignature(0);
+          setSignedEngagement(0);
+          setQuestionnaireCompleted(0);
+          setDocsUploaded(0);
+          setCompletedAllThree(0);
+          setFiledClients(0);
+          setInProgress(0);
+          setRecentActivity([]);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
     load();
-  }, [query, year, filterType]);
+    return () => {
+      cancelled = true;
+    };
+  }, [taxYear]);
 
-  async function load() {
-    // Select email too for fallback
-    const { data: clientsData, error } = await supabase
-      .from("profiles")
-      .select("id, first_name, last_name, role, phone_number, updated_at, email")
-      .eq("role", "client");
+  const filingPercent = useMemo(() => {
+    if (!totalClients) return 0;
+    return Math.round((filedClients / totalClients) * 100);
+  }, [filedClients, totalClients]);
 
-    if (error) {
-      console.error("Error fetching clients:", error);
-      return;
-    }
-      
-    const list = (clientsData || []).filter((c: any) => {
-      if (!query) return true;
-      const q = query.toLowerCase();
-      // Fallback name logic in search
-      const displayName = c.first_name || c.last_name 
-        ? `${c.first_name || ""} ${c.last_name || ""}` 
-        : (c.email || "Unknown Client");
-        
-      const name = displayName.toLowerCase();
-      const phone = (c.phone_number || "").toLowerCase();
-      const email = (c.email || "").toLowerCase();
-      return name.includes(q) || phone.includes(q) || (c.id || "").includes(q) || email.includes(q);
-    });
-    setClients(list);
-    
-    const ids = list.map((c: any) => c.id);
-    if (ids.length) {
-      let trQuery = supabase.from("tax_returns").select("*").in("user_id", ids);
-      if (year !== "all") trQuery = trQuery.eq("year", year);
-      const { data: trData } = await trQuery;
-      const byClient: Record<string, any[]> = {};
-      (trData || []).forEach((r) => {
-        byClient[r.user_id] = byClient[r.user_id] || [];
-        byClient[r.user_id].push(r);
-      });
-      setReturnsByClient(byClient);
-      let docQuery = supabase.from("user_documents").select("*").in("user_id", ids);
-      // Removed year filter for docs so we see all client documents regardless of selected year
-      const { data: docData } = await docQuery;
-      const docsClient: Record<string, any[]> = {};
-      (docData || []).forEach((d) => {
-        docsClient[d.user_id] = docsClient[d.user_id] || [];
-        docsClient[d.user_id].push(d);
-      });
-      setDocsByClient(docsClient);
-    } else {
-      setReturnsByClient({});
-      setDocsByClient({});
-    }
-  }
-
-  function initials(c: any) {
-    // Fallback if names are missing
-    if (!c.first_name && !c.last_name) {
-       return (c.email || "CL").substring(0, 2).toUpperCase();
-    }
-    const f = (c.first_name || "").trim();
-    const l = (c.last_name || "").trim();
-    return `${f.slice(0, 1)}${l.slice(0, 1)}`.toUpperCase() || "CL";
-  }
-
-  function lastActiveText(c: any) {
-    const list = returnsByClient[c.id] || [];
-    const latest = list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
-    const dt = new Date(latest?.created_at || c.updated_at || Date.now());
-    const diff = Date.now() - dt.getTime();
-    const d = Math.floor(diff / (1000 * 60 * 60 * 24));
-    if (d <= 0) return "Today";
-    if (d === 1) return "1 day ago";
-    return `${d} days ago`;
-  }
-
-  function status(c: any) {
-    const list = returnsByClient[c.id] || [];
-    const latest = list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
-    return latest?.status || "Needs Review";
-  }
-
-  function docBadges(c: any) {
-    const list = docsByClient[c.id] || [];
-    // Fallback to "Doc" if doctype is missing but document exists
-    const types = Array.from(new Set(list.map((d) => d.doctype || "Doc").filter(Boolean)));
-    return types;
-  }
-
-  function docBadgeColor(t: string) {
-    const key = (t || "").toUpperCase();
-    if (key.includes("W2")) return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300";
-    if (key.includes("1099")) return "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300";
-    if (key.includes("1040")) return "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300";
-    if (key.includes("LEGAL")) return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300";
-    if (key.includes("BANK")) return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300";
-    return "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200";
-  }
-
-  function statusDotColor(s: string) {
-    const key = (s || "").toLowerCase();
-    if (key === "filed") return "bg-green-500";
-    if (key === "pending") return "bg-yellow-500";
-    return "bg-orange-500";
-  }
+  const totalCircle = 2 * Math.PI * 80;
+  const dashOffset = totalCircle * (1 - filingPercent / 100);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Client Directory</h1>
-          <p className="text-sm text-zinc-500">Manage client profiles, tax documents, and statuses.</p>
+    <div className="space-y-8">
+      <section>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Admin Performance Dashboard</h1>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              Overview of firm operations and seasonal filing progress.
+            </p>
+          </div>
         </div>
-        <Link href="/admin/clients/new" className="rounded-lg bg-pink-600 px-4 py-2 text-sm font-semibold text-white">
-          Add New Client
-        </Link>
-      </div>
+      </section>
 
-      <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-zinc-900">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search by client name, email, or ID..."
-                className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm focus:border-pink-500 focus:ring-pink-500 dark:border-white/15 dark:bg-zinc-800"
-              />
+      <div className="space-y-8">
+          <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-zinc-950">
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="text-lg font-bold">Client Status Funnel</h2>
+              <Link href="/admin/clients" className="text-sm font-semibold text-primary hover:underline">
+                View All Clients
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
+              <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4 dark:border-white/10 dark:bg-zinc-900">
+                <div className="mb-2 h-7 w-7 rounded-lg bg-primary/15" />
+                <div className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400">Pending Signature</div>
+                <div className="text-xl font-bold">{pendingSignature}</div>
+                <div className="mt-1 text-[10px] text-zinc-400">Engagement Letter</div>
+              </div>
+
+              <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4 dark:border-white/10 dark:bg-zinc-900">
+                <div className="mb-2 h-7 w-7 rounded-lg bg-primary/15" />
+                <div className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400">Signed</div>
+                <div className="text-xl font-bold">{signedEngagement}</div>
+                <div className="mt-1 text-[10px] text-zinc-400">Engagement Letter</div>
+              </div>
+
+              <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4 dark:border-white/10 dark:bg-zinc-900">
+                <div className="mb-2 h-7 w-7 rounded-lg bg-primary/15" />
+                <div className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400">Completed</div>
+                <div className="text-xl font-bold">{questionnaireCompleted}</div>
+                <div className="mt-1 text-[10px] text-zinc-400">Tax Questionnaire</div>
+              </div>
+
+              <div className="rounded-xl border border-zinc-100 bg-zinc-50 p-4 dark:border-white/10 dark:bg-zinc-900">
+                <div className="mb-2 h-7 w-7 rounded-lg bg-primary/15" />
+                <div className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400">Uploaded</div>
+                <div className="text-xl font-bold">{docsUploaded}</div>
+                <div className="mt-1 text-[10px] text-zinc-400">Supporting Docs</div>
+              </div>
+
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+                <div className="mb-2 h-7 w-7 rounded-lg bg-primary/20" />
+                <div className="text-[10px] font-bold uppercase text-primary">In Progress</div>
+                <div className="text-xl font-bold text-primary">{inProgress}</div>
+                <div className="mt-1 text-[10px] text-primary/60">Firm Preparation</div>
+              </div>
+            </div>
+
+            <div className="mt-4 text-xs text-zinc-500 dark:text-zinc-400">
+              {loading ? "Loading metrics…" : `${completedAllThree} clients completed all 3 steps for ${taxYear}.`}
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-zinc-500">Filter by:</span>
-            <button
-              onClick={() => setFilterType("all")}
-              className={`rounded-full px-3 py-1 text-xs ${filterType === "all" ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900" : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"}`}
-            >
-              All Docs
-            </button>
-            <button
-              onClick={() => setFilterType("W2")}
-              className={`rounded-full px-3 py-1 text-xs ${filterType === "W2" ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900" : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"}`}
-            >
-              W2
-            </button>
-            <button
-              onClick={() => setFilterType("1099")}
-              className={`rounded-full px-3 py-1 text-xs ${filterType === "1099" ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900" : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"}`}
-            >
-              1099
-            </button>
-            <button
-              onClick={() => setFilterType("1040")}
-              className={`rounded-full px-3 py-1 text-xs ${filterType === "1040" ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900" : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"}`}
-            >
-              1040
-            </button>
-            <select
-              value={year}
-              onChange={(e) => setYear(e.target.value === "all" ? "all" : Number(e.target.value))}
-              className="rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-800"
-            >
-              <option value="all">All Years</option>
-              {years.map((y) => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
 
-      <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-zinc-900">
-        <div className="grid grid-cols-12 gap-4 border-b border-zinc-200 px-6 py-3 text-xs font-medium text-zinc-500 dark:border-white/10">
-          <div className="col-span-3">Client Name</div>
-          <div className="col-span-3">Entity</div>
-          <div className="col-span-2">Contact Info</div>
-          <div className="col-span-2">Last Active</div>
-          <div className="col-span-1">Docs</div>
-          <div className="col-span-1">Status</div>
-        </div>
-        <ul>
-          {clients
-            .filter((c) => {
-              if (filterType === "all") return true;
-              const docs = docsByClient[c.id] || [];
-              const returns = returnsByClient[c.id] || [];
-              const matchDocs = docs.some((d) => (d.title || "").toUpperCase().includes(filterType) || (d.doctype || "").toUpperCase().includes(filterType));
-              const matchReturns = returns.some((r) => (r.form_type || "").toUpperCase() === filterType);
-              return matchDocs || matchReturns;
-            })
-            .map((c) => (
-            <li 
-              key={c.id} 
-              onClick={() => router.push(`/admin/clients/${c.id}`)}
-              className="grid grid-cols-12 items-center gap-4 border-t border-zinc-100 px-6 py-4 dark:border-zinc-800 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
-            >
-              <div className="col-span-3 flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 text-xs font-semibold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-                  {initials(c)}
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+            <div className="flex flex-col items-center rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-zinc-950">
+              <div className="mb-4 w-full">
+                <h2 className="text-lg font-bold">Tax Filing Progress</h2>
+              </div>
+
+              <div className="relative mb-4 flex h-48 w-48 items-center justify-center">
+                <svg className="h-full w-full -rotate-90" viewBox="0 0 192 192" aria-hidden="true">
+                  <circle
+                    className="text-zinc-100 dark:text-zinc-800"
+                    cx="96"
+                    cy="96"
+                    r="80"
+                    fill="transparent"
+                    stroke="currentColor"
+                    strokeWidth="12"
+                  />
+                  <circle
+                    className="text-primary"
+                    cx="96"
+                    cy="96"
+                    r="80"
+                    fill="transparent"
+                    stroke="currentColor"
+                    strokeWidth="12"
+                    strokeDasharray={totalCircle}
+                    strokeDashoffset={dashOffset}
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <div className="text-3xl font-extrabold">{filingPercent}%</div>
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Filed</div>
                 </div>
-                <div>
-                  <div className="text-sm font-semibold text-zinc-900 dark:text-white">
-                    {c.first_name || c.last_name ? `${c.first_name} ${c.last_name}` : (c.email || "Unknown Client")}
+              </div>
+
+              <div className="text-center">
+                <div className="text-sm font-medium">
+                  {filedClients} of {totalClients} returns uploaded
+                </div>
+                <div className="mt-1 text-xs text-zinc-400">Current season: {taxYear}</div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-zinc-950">
+              <h2 className="mb-4 text-lg font-bold">Recent Activity</h2>
+
+              <div className="space-y-4">
+                {recentActivity.length === 0 ? (
+                  <div className="text-sm text-zinc-500 dark:text-zinc-400">
+                    {loading ? "Loading activity…" : "No recent client activity for this season."}
                   </div>
-                  <div className="text-xs text-zinc-500">{c.id}</div>
-                </div>
+                ) : (
+                  recentActivity.map((a) => (
+                    <div key={a.id} className="flex gap-3">
+                      <div className="mt-1 flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300" />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-bold">
+                          {a.name}{" "}
+                          <span className="font-normal text-zinc-500 dark:text-zinc-400">
+                            {activityText(a.doctype)}
+                          </span>
+                        </div>
+                        <div className="text-xs text-zinc-400">{timeAgo(a.created_at)}</div>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
-              <div className="col-span-3">
-                <div className="text-sm text-zinc-700 dark:text-zinc-300">{c.entity || "—"}</div>
-              </div>
-              <div className="col-span-2">
-                <div className="text-sm text-zinc-700 dark:text-zinc-300">
-                  {c.email || "—"}
-                </div>
-                <div className="text-xs text-zinc-500">{c.phone_number || ""}</div>
-              </div>
-              <div className="col-span-2">
-                <div className="text-sm text-zinc-700 dark:text-zinc-300">{lastActiveText(c)}</div>
-              </div>
-              <div className="col-span-1 flex items-center gap-2">
-                {(() => {
-                  const badges = docBadges(c);
-                  const firstTwo = badges.slice(0, 2);
-                  const extra = Math.max(0, badges.length - firstTwo.length);
-                  return (
-                    <>
-                      {firstTwo.map((t) => (
-                        <span key={t} className={`rounded-full px-2 py-0.5 text-xs ${docBadgeColor(t)}`}>
-                          {t}
-                        </span>
-                      ))}
-                      {extra > 0 && (
-                        <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-                          +{extra}
-                        </span>
-                      )}
-                    </>
-                  );
-                })()}
-              </div>
-              <div className="col-span-1 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className={`h-2 w-2 rounded-full ${statusDotColor(status(c))}`} />
-                  <span className="text-sm text-zinc-700 dark:text-zinc-300 capitalize">{status(c)}</span>
-                </div>
-                <Link href={`/admin/clients/${c.id}`} className="rounded bg-zinc-100 px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700">
-                  Open
-                </Link>
-              </div>
-            </li>
-          ))}
-        </ul>
-        <div className="flex items-center justify-between border-t border-zinc-100 px-6 py-3 text-xs text-zinc-500 dark:border-zinc-800">
-          <div>Showing {Math.min(clients.length, 5)} of {clients.length} results</div>
-          <div className="flex items-center gap-1">
-            <button className="rounded bg-zinc-100 px-2 py-1">‹</button>
-            <button className="rounded bg-blue-600 px-2 py-1 text-white">1</button>
-            <button className="rounded bg-zinc-100 px-2 py-1">2</button>
-            <button className="rounded bg-zinc-100 px-2 py-1">3</button>
-            <button className="rounded bg-zinc-100 px-2 py-1">…</button>
-            <button className="rounded bg-zinc-100 px-2 py-1">›</button>
+            </div>
           </div>
-        </div>
       </div>
     </div>
   );

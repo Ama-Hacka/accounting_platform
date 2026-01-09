@@ -29,7 +29,7 @@ export default function SignInPage() {
         const { data: prof } = await supabase.from("profiles").select("role").eq("id", user.id).single();
         role = prof?.role || null;
       }
-      if (firm && (role === "owner" || role === "staff")) {
+      if (firm && (role === "owner" || role === "admin" || role === "staff")) {
         router.push("/admin");
       } else {
         router.push("/dashboard");
@@ -99,7 +99,7 @@ export default function SignInPage() {
             />
             <button
               type="submit"
-              className="w-full rounded-full bg-pink-600 px-4 py-2 text-sm font-semibold text-white hover:bg-pink-500"
+              className="w-full rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
             >
               Sign in
             </button>
@@ -107,7 +107,7 @@ export default function SignInPage() {
           <button
             type="button"
             onClick={handleForgotPasswordClick}
-            className="mt-3 text-sm font-medium text-pink-600 hover:underline dark:text-pink-400"
+            className="mt-3 text-sm font-medium text-red-600 hover:underline dark:text-red-400"
           >
             Forgot password?
           </button>
@@ -134,7 +134,7 @@ export default function SignInPage() {
             <button
               type="submit"
               disabled={resetting}
-              className="w-full rounded-full bg-pink-600 px-4 py-2 text-sm font-semibold text-white hover:bg-pink-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {resetting ? "Sending…" : "Send reset link"}
             </button>
@@ -142,7 +142,7 @@ export default function SignInPage() {
           <button
             type="button"
             onClick={handleBackToSignIn}
-            className="mt-3 text-sm font-medium text-pink-600 hover:underline dark:text-pink-400"
+            className="mt-3 text-sm font-medium text-red-600 hover:underline dark:text-red-400"
           >
             ← Back to sign in
           </button>
@@ -162,7 +162,7 @@ export default function SignInPage() {
           <p className="font-medium text-zinc-900 dark:text-white">Can&apos;t access your email?</p>
           <p className="mt-1 text-zinc-600 dark:text-zinc-400">
             Send an email to{" "}
-            <a href="mailto:accounting@icmultiservices.com" className="font-medium text-pink-600 hover:underline dark:text-pink-400">
+            <a href="mailto:accounting@icmultiservices.com" className="font-medium text-red-600 hover:underline dark:text-red-400">
               accounting@icmultiservices.com
             </a>{" "}
             with:
@@ -181,7 +181,7 @@ export default function SignInPage() {
       {!forgotPasswordMode && (
         <div className="mt-6 text-sm text-zinc-700 dark:text-zinc-300">
           Don&apos;t have an account?{" "}
-          <Link href="/auth/signup" className="font-medium text-pink-600 hover:underline dark:text-pink-400">
+          <Link href="/auth/signup" className="font-medium text-red-600 hover:underline dark:text-red-400">
             Sign up
           </Link>
         </div>

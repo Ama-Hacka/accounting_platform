@@ -123,7 +123,7 @@ export default function ProfileTab({
                   onClick={() => setActiveSection(section.id)}
                   className={`w-full flex items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium transition-colors ${
                     activeSection === section.id
-                      ? "bg-pink-50 text-pink-600 dark:bg-pink-900/20 dark:text-pink-400"
+                      ? "bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400"
                       : "text-zinc-600 hover:bg-zinc-50 dark:text-zinc-400 dark:hover:bg-zinc-800"
                   }`}
                 >
@@ -162,7 +162,7 @@ export default function ProfileTab({
                         type="text"
                         value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
-                        className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                        className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
                         placeholder="Enter first name"
                       />
                     </div>
@@ -174,7 +174,7 @@ export default function ProfileTab({
                         type="text"
                         value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
-                        className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                        className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
                         placeholder="Enter last name"
                       />
                     </div>
@@ -208,7 +208,7 @@ export default function ProfileTab({
                         value={phoneNumber}
                         onChange={(e) => setPhoneNumber(e.target.value)}
                         placeholder="(555) 123-4567"
-                        className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                        className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
                       />
                     </div>
                   </div>
@@ -225,7 +225,7 @@ export default function ProfileTab({
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
                       placeholder="Enter your full address"
-                      className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                      className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
                     />
                   </div>
                 </div>
@@ -254,7 +254,7 @@ export default function ProfileTab({
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         placeholder="Enter new password"
-                        className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-2.5 pr-12 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                        className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-2.5 pr-12 text-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
                       />
                       <button
                         type="button"
@@ -275,7 +275,7 @@ export default function ProfileTab({
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="Confirm new password"
-                      className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                      className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
                     />
                     {newPassword && confirmPassword && newPassword !== confirmPassword && (
                       <p className="mt-1 text-xs text-red-500">Passwords do not match</p>
@@ -305,7 +305,7 @@ export default function ProfileTab({
                         type="button"
                         onClick={() => setEmailNotifications(!emailNotifications)}
                         className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                          emailNotifications ? "bg-pink-600" : "bg-zinc-300 dark:bg-zinc-600"
+                          emailNotifications ? "bg-red-600" : "bg-zinc-300 dark:bg-zinc-600"
                         }`}
                       >
                         <span
@@ -329,7 +329,7 @@ export default function ProfileTab({
                         type="button"
                         onClick={() => setSmsNotifications(!smsNotifications)}
                         className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                          smsNotifications ? "bg-pink-600" : "bg-zinc-300 dark:bg-zinc-600"
+                          smsNotifications ? "bg-red-600" : "bg-zinc-300 dark:bg-zinc-600"
                         }`}
                       >
                         <span
@@ -347,7 +347,7 @@ export default function ProfileTab({
                       <select
                         value={preferredLanguage}
                         onChange={(e) => setPreferredLanguage(e.target.value as "en" | "es")}
-                        className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                        className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
                       >
                         <option value="en">English</option>
                         <option value="es">Español</option>
@@ -362,7 +362,7 @@ export default function ProfileTab({
                 <button
                   type="submit"
                   disabled={saving}
-                  className="inline-flex items-center gap-2 rounded-lg bg-pink-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-pink-500 disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:opacity-50"
                 >
                   {saving ? (
                     <>

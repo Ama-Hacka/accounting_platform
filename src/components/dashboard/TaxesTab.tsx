@@ -32,14 +32,27 @@ interface TaxesTabProps {
   questionnaireStatus: "not_started" | "in_progress" | "submitted";
   questionnaireProgress: number;
   onStatusChange: (status: "not_started" | "in_progress" | "submitted", progress: number) => void;
+  selectedTaxYear: number;
+  onSelectedTaxYearChange: (year: number) => void;
 }
 
 type TaxSection = "engagement" | "questionnaire" | "checklist";
 
+type YesNoNa = "yes" | "no" | "na";
+type QuestionnaireResponseType = "yesno" | "text";
+
+interface QuestionnaireQuestion {
+  id: string;
+  section: string;
+  order: number;
+  questionTemplateEn: string;
+  questionTemplateEs: string;
+  responseType: QuestionnaireResponseType;
+}
+
 interface QuestionnaireAnswer {
   questionId: string;
-  answer: "yes" | "no" | "na" | null;
-  notes?: string;
+  value: YesNoNa | string | null;
 }
 
 interface ChecklistItem {
@@ -51,68 +64,332 @@ interface ChecklistItem {
 }
 
 // Sample questionnaire questions
-const questionnaireQuestions = [
+const questionnaireQuestions: QuestionnaireQuestion[] = [
   {
     id: "q1",
-    category: "Personal Information",
-    question: "Did your marital status change during the tax year?",
-    hasNotes: true,
+    section: "General",
+    order: 1,
+    questionTemplateEn: "Did you file your taxes with IC Multi Services, LLC last year?",
+    questionTemplateEs: "¿Llenó/presentó sus impuestos con IC Multi Services, LLC el año pasado?",
+    responseType: "yesno",
   },
   {
     id: "q2",
-    category: "Personal Information",
-    question: "Did you have any dependents during the tax year?",
-    hasNotes: true,
+    section: "Personal",
+    order: 2,
+    questionTemplateEn: "What was your primary occupation or job title during {year} (as of December 31, {year})?",
+    questionTemplateEs: "¿Cuál fue su cargo u ocupación durante el año fiscal {year} (al 31 de diciembre de {year})?",
+    responseType: "text",
   },
   {
     id: "q3",
-    category: "Income",
-    question: "Did you receive W-2 wages from an employer?",
-    hasNotes: false,
+    section: "Personal",
+    order: 3,
+    questionTemplateEn: "What is your current address?",
+    questionTemplateEs: "¿Cuál es su dirección actual?",
+    responseType: "text",
   },
   {
     id: "q4",
-    category: "Income",
-    question: "Did you receive any 1099 income (freelance, contract work)?",
-    hasNotes: true,
+    section: "Residency",
+    order: 4,
+    questionTemplateEn: "List all addresses where you lived during {year} and the dates you lived at each location.",
+    questionTemplateEs: "Numere todas las direcciones en que vivió durante el {year} y las fechas en que vivió allí.",
+    responseType: "text",
   },
   {
     id: "q5",
-    category: "Income",
-    question: "Did you receive any rental income?",
-    hasNotes: true,
+    section: "Filing Status",
+    order: 5,
+    questionTemplateEn: "Did your marital status change during {year}?",
+    questionTemplateEs: "¿Cambió su estado civil antes de finalizar el año {year}?",
+    responseType: "yesno",
   },
   {
     id: "q6",
-    category: "Deductions",
-    question: "Did you make any charitable contributions?",
-    hasNotes: true,
+    section: "Dependents",
+    order: 6,
+    questionTemplateEn: "Were there any changes in dependents during {year} (birth, adoption, custody change, etc.)?",
+    questionTemplateEs: "¿Hubo cambios en los dependientes durante el {year} (nacimiento, adopción, cambio de custodia, etc.)?",
+    responseType: "yesno",
   },
   {
     id: "q7",
-    category: "Deductions",
-    question: "Did you pay mortgage interest on your primary residence?",
-    hasNotes: false,
+    section: "Dependents",
+    order: 7,
+    questionTemplateEn: "Please list all members of your household, including yourself (first name, last name, relationship, date of birth).",
+    questionTemplateEs: "Enumere a todos los miembros de su hogar, incluido usted mismo (nombre, apellido, relación, fecha de nacimiento).",
+    responseType: "text",
   },
   {
     id: "q8",
-    category: "Deductions",
-    question: "Did you have any medical expenses exceeding 7.5% of your income?",
-    hasNotes: true,
+    section: "Banking",
+    order: 8,
+    questionTemplateEn: "For direct deposit or tax payment, please provide your bank name, routing number, and account number.",
+    questionTemplateEs: "Para depósito directo o pagos electrónicos, proporcione el nombre de su banco, número de ruta y número de cuenta.",
+    responseType: "text",
   },
   {
     id: "q9",
-    category: "Credits",
-    question: "Did you pay for childcare expenses?",
-    hasNotes: true,
+    section: "Credits – Dependent Care",
+    order: 9,
+    questionTemplateEn:
+      "Did you have any child or dependency care expenses in {year}? If yes, include care provider's name, address, SSN/EIN, and total amount paid. Please upload documentation that includes the care provider, if any.",
+    questionTemplateEs:
+      "¿Tuvo algún gasto por cuidado de hijos o dependientes en {year}? Si respondió que sí, incluya el nombre, la dirección, el SSN/EIN y el monto total pagado del proveedor. Cargue documentación que incluya al proveedor, si corresponde.",
+    responseType: "text",
   },
   {
     id: "q10",
-    category: "Credits",
-    question: "Did you contribute to a retirement account (401k, IRA)?",
-    hasNotes: true,
+    section: "Education",
+    order: 10,
+    questionTemplateEn: "Do you have any student loans?",
+    questionTemplateEs: "¿Tiene algún préstamo estudiantil?",
+    responseType: "yesno",
+  },
+  {
+    id: "q11",
+    section: "Education",
+    order: 11,
+    questionTemplateEn: "If so, are you in a PSLF program? What is your repayment plan (REPAYE, SAVE, PAYE, IBR, etc.)?",
+    questionTemplateEs: "Si es así, ¿está usted en un programa PSLF? ¿Cuál es su plan de pago (REPAYE, SAVE, PAYE, IBR, etc.)?",
+    responseType: "text",
+  },
+  {
+    id: "q12",
+    section: "Education",
+    order: 12,
+    questionTemplateEn: "Did you incur any tuition or continuing education expenses in {year}?",
+    questionTemplateEs: "¿Incurrió en algún gasto de matrícula o educación continua en {year}?",
+    responseType: "yesno",
+  },
+  {
+    id: "q13",
+    section: "Investments",
+    order: 13,
+    questionTemplateEn: "Did you buy or sell stocks, mutual funds, bonds, or other investment properties in {year}?",
+    questionTemplateEs: "¿Compró o vendió acciones, fondos mutuos, bonos u otras propiedades de inversión en {year}?",
+    responseType: "yesno",
+  },
+  {
+    id: "q14",
+    section: "Digital Assets",
+    order: 14,
+    questionTemplateEn:
+      "Did you purchase, sell, or obtain any cryptocurrency or other digital assets in {year}? If so, upload documentation for each transaction with the corresponding cost basis.",
+    questionTemplateEs:
+      "¿Compró, vendió u obtuvo alguna criptomoneda u otros activos digitales en {year}? De ser así, suba la documentación de cada transacción con la base de costos correspondiente.",
+    responseType: "yesno",
+  },
+  {
+    id: "q15",
+    section: "Charitable",
+    order: 15,
+    questionTemplateEn: "Did you donate money, clothes, cars, or stock in {year}?",
+    questionTemplateEs: "¿Donó dinero, ropa, autos o acciones en {year}?",
+    responseType: "yesno",
+  },
+  {
+    id: "q16",
+    section: "Retirement",
+    order: 16,
+    questionTemplateEn:
+      "Did you make contributions to a retirement plan in {year} (401(k), IRA, Roth IRA, SEP IRA, HSA, 529)?",
+    questionTemplateEs:
+      "¿Realizó contribuciones a planes de jubilación en {year} (401(k), IRA, Roth IRA, SEP IRA, HSA, 529)?",
+    responseType: "yesno",
+  },
+  {
+    id: "q17",
+    section: "Retirement",
+    order: 17,
+    questionTemplateEn:
+      "Did you receive a distribution from a retirement plan in {year}? (Attach Form 1099-R if applicable.)",
+    questionTemplateEs:
+      "¿Recibió alguna distribución de un plan de jubilación en {year}? (Adjunte el Formulario 1099-R si aplica.)",
+    responseType: "yesno",
+  },
+  {
+    id: "q18",
+    section: "Home",
+    order: 18,
+    questionTemplateEn:
+      "Did you buy, sell, or refinance your home in {year}? If yes, please upload your settlement statement (closing disclosure).",
+    questionTemplateEs:
+      "¿Compró, vendió o refinanció su vivienda en {year}? Si es así, por favor cargue su hoja de cierre/estado de liquidación (closing disclosure).",
+    responseType: "yesno",
+  },
+  {
+    id: "q19",
+    section: "Health Insurance",
+    order: 19,
+    questionTemplateEn: "Did you and your dependents have health care coverage for the full year in {year}?",
+    questionTemplateEs: "¿Usted y sus dependientes tuvieron cobertura médica durante todo el {year}?",
+    responseType: "yesno",
+  },
+  {
+    id: "q20",
+    section: "Health Insurance",
+    order: 20,
+    questionTemplateEn:
+      "Did you receive any of the following coverage documents: Form 1095-A, 1095-B, or Form 1095-C? If so, please send/upload.",
+    questionTemplateEs:
+      "¿Recibió alguno de los siguientes documentos de cobertura médica: Formulario 1095-A, 1095-B o 1095-C? Si es así, por favor envíe/cargue.",
+    responseType: "yesno",
+  },
+  {
+    id: "q21",
+    section: "Other Income",
+    order: 21,
+    questionTemplateEn:
+      "Do you have any other taxable income (i.e., rental, royalty, business, gambling)? Please list.",
+    questionTemplateEs:
+      "¿Tiene algún otro ingreso sujeto a impuestos (por ejemplo, alquiler, regalías, negocios, juegos de azar)? Por favor liste.",
+    responseType: "text",
+  },
+  {
+    id: "q22",
+    section: "Foreign",
+    order: 22,
+    questionTemplateEn:
+      "Do you own or have a controlling interest in foreign financial institutions, businesses, or investment funds?",
+    questionTemplateEs:
+      "¿Es propietario o tiene una participación mayoritaria en instituciones financieras, empresas o fondos de inversión extranjeros?",
+    responseType: "yesno",
+  },
+  {
+    id: "q23",
+    section: "Contributions",
+    order: 23,
+    questionTemplateEn:
+      "Did you make contributions to an HSA, IRA, SEP IRA, or 529 plans that were not payroll deductions? If yes, disclose details (account type, contribution amount, etc.).",
+    questionTemplateEs:
+      "¿Hizo contribuciones a una HSA, IRA, SEP IRA o planes 529 que no fueran deducciones de nómina? En caso afirmativo, proporcione detalles (tipo de cuenta, monto de la contribución, etc.).",
+    responseType: "text",
+  },
+  {
+    id: "q24",
+    section: "Estimated Taxes",
+    order: 24,
+    questionTemplateEn:
+      "Did you make any estimated tax payments during the {year} tax year that should be credited to you? If so, provide the amounts paid for each quarter.",
+    questionTemplateEs:
+      "¿Realizó algún pago estimado de impuestos durante el año fiscal {year} que deba acreditarse a su favor? De ser así, proporcione los montos pagados por cada trimestre.",
+    responseType: "text",
+  },
+  {
+    id: "q25",
+    section: "OBBBA – Tips",
+    order: 25,
+    questionTemplateEn: "Did you earn tip income in {year} (cash or charged tips)?",
+    questionTemplateEs: "¿Recibió ingresos por propinas en {year} (efectivo o tarjeta)?",
+    responseType: "yesno",
+  },
+  {
+    id: "q26",
+    section: "OBBBA – Tips",
+    order: 26,
+    questionTemplateEn: "If yes, estimate total tip income earned in {year}.",
+    questionTemplateEs: "Si respondió que sí, estime el total de propinas recibidas en {year}.",
+    responseType: "text",
+  },
+  {
+    id: "q27",
+    section: "OBBBA – Overtime",
+    order: 27,
+    questionTemplateEn: "Did you earn overtime pay (time-and-a-half or premium pay) in {year}?",
+    questionTemplateEs: "¿Recibió pago por horas extra (tiempo y medio u otra tarifa premium) en {year}?",
+    responseType: "yesno",
+  },
+  {
+    id: "q28",
+    section: "OBBBA – Overtime",
+    order: 28,
+    questionTemplateEn: "If yes, estimate total overtime pay earned in {year}.",
+    questionTemplateEs: "Si respondió que sí, estime el total recibido por horas extra.",
+    responseType: "text",
+  },
+  {
+    id: "q29",
+    section: "OBBBA – Auto Loan Interest",
+    order: 29,
+    questionTemplateEn:
+      "Did you purchase a NEW personal vehicle in {year} (assembled in the United States) and finance it with a loan?",
+    questionTemplateEs:
+      "¿Compró un vehículo nuevo en {year} para uso personal, ensamblado en los Estados Unidos, y lo financió con un préstamo?",
+    responseType: "yesno",
+  },
+  {
+    id: "q30",
+    section: "OBBBA – Auto Loan Interest",
+    order: 30,
+    questionTemplateEn: "If yes, how much auto loan interest did you pay in {year}?",
+    questionTemplateEs: "Si respondió que sí, ¿cuánto pagó en intereses del préstamo del auto durante {year}?",
+    responseType: "text",
+  },
+  {
+    id: "q31",
+    section: "OBBBA – Child Savings",
+    order: 31,
+    questionTemplateEn:
+      "Did you open or contribute to a tax-advantaged children’s savings account in {year} (sometimes referred to as “Trump Accounts”)?",
+    questionTemplateEs:
+      "¿Abrió o contribuyó a una cuenta de ahorro para niños con beneficios fiscales en {year} (a veces llamadas “Trump Accounts”)?",
+    responseType: "yesno",
+  },
+  {
+    id: "q32",
+    section: "Energy Credits",
+    order: 32,
+    questionTemplateEn: "Did you install solar, battery storage, geothermal, or other clean-energy systems in {year}?",
+    questionTemplateEs: "¿Instaló sistemas de energía limpia en su hogar en {year} (paneles solares, baterías, geotermia, etc.)?",
+    responseType: "yesno",
+  },
+  {
+    id: "q33",
+    section: "Energy Credits",
+    order: 33,
+    questionTemplateEn:
+      "Did you make energy-efficient home improvements in {year} (windows, insulation, HVAC, heat pump, water heater, etc.)?",
+    questionTemplateEs:
+      "¿Realizó mejoras de eficiencia energética en {year} (ventanas, aislamiento, HVAC, bomba de calor, calentador de agua, etc.)?",
+    responseType: "yesno",
+  },
+  {
+    id: "q34",
+    section: "EV / Charger",
+    order: 34,
+    questionTemplateEn: "Did you purchase an electric vehicle (EV) or install an EV charger in {year}?",
+    questionTemplateEs: "¿Compró un vehículo eléctrico o instaló un cargador EV en {year}?",
+    responseType: "yesno",
+  },
+  {
+    id: "q35",
+    section: "Other / Life Events",
+    order: 35,
+    questionTemplateEn:
+      "Any other items that may affect your {year} taxes (large gifts, inheritance, settlements, major life events)? Please describe.",
+    questionTemplateEs:
+      "¿Algún otro asunto que pueda afectar sus impuestos {year} (donaciones grandes, herencias, acuerdos legales, eventos importantes)? Por favor describa.",
+    responseType: "text",
+  },
+  {
+    id: "q36",
+    section: "Questions / Concerns",
+    order: 36,
+    questionTemplateEn: "Please list any questions or other concerns you might have.",
+    questionTemplateEs: "Numere cualquier pregunta u otra inquietud que pueda tener.",
+    responseType: "text",
   },
 ];
+
+function formatQuestionTemplate(template: string, year: number) {
+  return template.replaceAll("{year}", String(year));
+}
+
+function getQuestionTemplate(q: QuestionnaireQuestion, preferredLanguage?: "en" | "es") {
+  return preferredLanguage === "es" ? q.questionTemplateEs : q.questionTemplateEn;
+}
 
 // Document checklist items
 const initialChecklist: ChecklistItem[] = [
@@ -136,16 +413,32 @@ export default function TaxesTab({
   questionnaireStatus,
   questionnaireProgress,
   onStatusChange,
+  selectedTaxYear,
+  onSelectedTaxYearChange,
 }: TaxesTabProps) {
   const currentYear = new Date().getFullYear();
+  const defaultTaxYear = currentYear - 1;
+  const taxYears = Array.from({ length: 8 }, (_, i) => defaultTaxYear - i);
+
   const [activeSection, setActiveSection] = useState<TaxSection>("engagement");
   const [signingEngagement, setSigningEngagement] = useState(false);
   const [showSignaturePad, setShowSignaturePad] = useState(false);
   const [signatureData, setSignatureData] = useState<SignatureData | null>(null);
+  const [showEngagementNextStepPrompt, setShowEngagementNextStepPrompt] = useState(false);
   const [answers, setAnswers] = useState<QuestionnaireAnswer[]>([]);
   const [checklist, setChecklist] = useState<ChecklistItem[]>(initialChecklist);
   const [uploading, setUploading] = useState<string | null>(null);
   const [autoSaving, setAutoSaving] = useState(false);
+  const [savingQuestionnairePdf, setSavingQuestionnairePdf] = useState(false);
+
+  // If the engagement is already signed when the user arrives here, default to the next step.
+  useEffect(() => {
+    if (!engagementSigned) return;
+    setShowEngagementNextStepPrompt(false);
+    if (activeSection === "engagement") {
+      setActiveSection("questionnaire");
+    }
+  }, [engagementSigned, activeSection]);
 
   // Calculate progress based on completed items
   const calculateProgress = useCallback(() => {
@@ -158,7 +451,13 @@ export default function TaxesTab({
 
     // Each question counts
     total += questionnaireQuestions.length;
-    completed += answers.filter((a) => a.answer !== null).length;
+    const answersById = new Map(answers.map((a) => [a.questionId, a.value] as const));
+    completed += questionnaireQuestions.reduce((count, q) => {
+      const v = answersById.get(q.id);
+      if (q.responseType === "yesno") return count + (v === "yes" || v === "no" || v === "na" ? 1 : 0);
+      if (typeof v === "string" && v.trim().length > 0) return count + 1;
+      return count;
+    }, 0);
 
     // Each required checklist item counts
     const requiredDocs = checklist.filter((c) => c.required);
@@ -183,21 +482,256 @@ export default function TaxesTab({
   }, [calculateProgress, onStatusChange]);
 
   // Auto-save answers (simulated)
-  const handleAnswerChange = async (questionId: string, answer: "yes" | "no" | "na" | null, notes?: string) => {
+  const handleAnswerChange = async (questionId: string, value: YesNoNa | string | null) => {
     setAutoSaving(true);
     
     setAnswers((prev) => {
       const existing = prev.find((a) => a.questionId === questionId);
       if (existing) {
-        return prev.map((a) =>
-          a.questionId === questionId ? { ...a, answer, notes } : a
-        );
+        return prev.map((a) => (a.questionId === questionId ? { ...a, value } : a));
       }
-      return [...prev, { questionId, answer, notes }];
+      return [...prev, { questionId, value }];
     });
 
     // Simulate auto-save delay
     setTimeout(() => setAutoSaving(false), 500);
+  };
+
+  const generateQuestionnaireHTML = (year: number) => {
+    const isSpanish = profile?.preferred_language === "es";
+    const clientName = `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim() || user?.email || "Client";
+    const createdAt = new Date().toLocaleString(isSpanish ? "es-ES" : "en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    const answersById = new Map(answers.map((a) => [a.questionId, a.value] as const));
+
+    const grouped = questionnaireQuestions
+      .slice()
+      .sort((a, b) => a.order - b.order)
+      .reduce((acc, q) => {
+        if (!acc[q.section]) acc[q.section] = [];
+        acc[q.section].push(q);
+        return acc;
+      }, {} as Record<string, QuestionnaireQuestion[]>);
+
+    const escapeHtml = (s: string) =>
+      s
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+
+    const renderAnswer = (q: QuestionnaireQuestion) => {
+      const v = answersById.get(q.id);
+      if (q.responseType === "yesno") {
+        if (v === "yes") return "Yes";
+        if (v === "no") return "No";
+        if (v === "na") return "N/A";
+        return "";
+      }
+      if (typeof v === "string") return v;
+      return "";
+    };
+
+    const sectionsHtml = Object.entries(grouped)
+      .map(([section, qs]) => {
+        const rows = qs
+          .map((q) => {
+            const template = getQuestionTemplate(q, profile?.preferred_language);
+            const questionText = formatQuestionTemplate(template, year);
+            const answerText = renderAnswer(q);
+            return `
+              <tr>
+                <td class="q">${escapeHtml(questionText)}</td>
+                <td class="a">${escapeHtml(answerText)}</td>
+              </tr>
+            `;
+          })
+          .join("");
+
+        return `
+          <h2>${escapeHtml(section)}</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>${isSpanish ? "Pregunta" : "Question"}</th>
+                <th>${isSpanish ? "Respuesta" : "Response"}</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows}
+            </tbody>
+          </table>
+        `;
+      })
+      .join("\n");
+
+    return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${year} Tax Questionnaire</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { font-family: Arial, Helvetica, sans-serif; color: #111827; background: #ffffff; margin: 0; padding: 24px; }
+      h1 { font-size: 18px; margin: 0 0 6px 0; }
+      .meta { font-size: 12px; color: #6b7280; margin-bottom: 16px; }
+      h2 { font-size: 14px; margin: 18px 0 8px 0; padding-top: 12px; border-top: 1px solid #e5e7eb; }
+      table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+      th, td { border: 1px solid #e5e7eb; vertical-align: top; padding: 8px; font-size: 12px; }
+      th { background: #f9fafb; text-align: left; }
+      td.q { width: 65%; }
+      td.a { width: 35%; white-space: pre-wrap; }
+    </style>
+  </head>
+  <body>
+    <h1>${year} Tax Questionnaire</h1>
+    <div class="meta">${isSpanish ? "Cliente" : "Client"}: ${escapeHtml(clientName)}<br/>${isSpanish ? "Generado" : "Generated"}: ${escapeHtml(createdAt)}</div>
+    ${sectionsHtml}
+  </body>
+</html>`;
+  };
+
+  const saveQuestionnairePdf = async () => {
+    if (!user) return;
+
+    setSavingQuestionnairePdf(true);
+    try {
+      const html = generateQuestionnaireHTML(selectedTaxYear);
+
+      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+        import("jspdf"),
+        import("html2canvas"),
+      ]);
+
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "absolute";
+      iframe.style.left = "-9999px";
+      iframe.style.top = "0";
+      iframe.style.width = "800px";
+      iframe.style.height = "1200px";
+      iframe.style.border = "none";
+      document.body.appendChild(iframe);
+
+      await new Promise<void>((resolve, reject) => {
+        iframe.onload = () => resolve();
+        iframe.onerror = () => reject(new Error("Failed to load iframe"));
+        iframe.srcdoc = html;
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 400));
+
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      const iframeWindow = iframe.contentWindow;
+      const bodyContent = iframeDoc?.body;
+      if (!bodyContent || !iframeWindow) {
+        throw new Error("Failed to create document for PDF generation");
+      }
+
+      const canvas = await html2canvas(bodyContent, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: "#ffffff",
+        width: 800,
+        windowWidth: 800,
+        logging: false,
+        // @ts-ignore - window option exists but may not be in types
+        window: iframeWindow,
+      });
+
+      const imgData = canvas.toDataURL("image/jpeg", 0.98);
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      const contentWidth = pageWidth - margin * 2;
+      const imgWidth = contentWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let position = margin;
+
+      pdf.addImage(imgData, "JPEG", margin, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight - margin * 2;
+
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight + margin;
+        pdf.addPage();
+        pdf.addImage(imgData, "JPEG", margin, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight - margin * 2;
+      }
+
+      const pdfBlob = pdf.output("blob");
+
+      document.body.removeChild(iframe);
+
+      const clientName = `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim();
+      const baseName = clientName ? `${clientName} ${selectedTaxYear} Tax Questionnaire.pdf` : `${selectedTaxYear} Tax Questionnaire.pdf`;
+      const safeName = baseName.replace(/[^a-zA-Z0-9 ._\-()]/g, "");
+      const filePath = `${user.id}/${safeName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("documents")
+        .upload(filePath, pdfBlob, { contentType: "application/pdf", upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: existingDoc, error: checkError } = await supabase
+        .from("user_documents")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("doctype", "Tax Questionnaire")
+        .eq("year", selectedTaxYear)
+        .maybeSingle();
+
+      if (checkError) throw checkError;
+
+      if (existingDoc) {
+        const { error: updateError } = await supabase
+          .from("user_documents")
+          .update({
+            title: `${selectedTaxYear} Tax Questionnaire`,
+            file_path: filePath,
+            file_type: "application/pdf",
+            size: pdfBlob.size,
+          })
+          .eq("id", existingDoc.id);
+
+        if (updateError) throw updateError;
+      } else {
+        const { error: dbError } = await supabase.from("user_documents").insert({
+          user_id: user.id,
+          title: `${selectedTaxYear} Tax Questionnaire`,
+          doctype: "Tax Questionnaire",
+          year: selectedTaxYear,
+          file_path: filePath,
+          file_type: "application/pdf",
+          size: pdfBlob.size,
+        });
+
+        if (dbError) throw dbError;
+      }
+
+      alert(profile?.preferred_language === "es" ? "¡Cuestionario guardado en PDF exitosamente!" : "Questionnaire saved as PDF successfully!");
+
+      // After saving, move the user to the next stage (documents checklist).
+      setActiveSection("checklist");
+    } catch (error: any) {
+      console.error("Error saving questionnaire PDF:", error);
+      alert(
+        (profile?.preferred_language === "es" ? "Error al guardar el PDF del cuestionario: " : "Error saving questionnaire PDF: ") +
+          (error?.message || String(error))
+      );
+    } finally {
+      setSavingQuestionnairePdf(false);
+    }
   };
 
   // Handle document upload for checklist
@@ -291,7 +825,7 @@ export default function TaxesTab({
       taxYear: "Año Tributario",
       dateSigned: "Fecha de Firma",
       greeting: `Estimado/a ${clientName}:`,
-      intro: `Gracias por elegir a ${firmName} ("la Firma", "nosotros" o "nuestro") para asistirle con la preparación y/o revisión de sus declaraciones de impuestos federales y estatales correspondientes al año tributario ${currentYear}. Esta carta confirma los términos de nuestra colaboración y describe la naturaleza y el alcance de los servicios que le proporcionaremos.`,
+      intro: `Gracias por elegir a ${firmName} ("la Firma", "nosotros" o "nuestro") para asistirle con la preparación y/o revisión de sus declaraciones de impuestos federales y estatales correspondientes al año tributario ${selectedTaxYear}. Esta carta confirma los términos de nuestra colaboración y describe la naturaleza y el alcance de los servicios que le proporcionaremos.`,
       scopeTitle: "Alcance de los Servicios:",
       scopeP1: "Revisaremos, prepararemos y/o modificaremos sus declaraciones de impuestos federales y estatales actuales, basándonos exclusivamente en la información que usted nos proporcione. Dependeremos de usted para suministrar información completa y precisa necesaria para realizar una evaluación adecuada y brindar recomendaciones. Podremos solicitar aclaraciones sobre ciertos puntos; sin embargo, no auditaremos ni verificaremos de otra manera la información que usted nos entregue.",
       scopeP2: "La revisión o modificación de declaraciones de años anteriores queda fuera del alcance de este compromiso, salvo que se acuerde expresamente por escrito, y podrá estar sujeta a cargos adicionales.",
@@ -311,8 +845,8 @@ export default function TaxesTab({
       conclusionP2: "Nuestro compromiso para preparar sus declaraciones de impuestos concluirá con la entrega de nuestro análisis, junto con cualquier aclaración o corrección recomendada. Si usted no ha seleccionado presentar electrónicamente sus declaraciones a través de nuestra oficina, será su exclusiva responsabilidad presentar las declaraciones ante las autoridades fiscales correspondientes. Revise cuidadosamente todos los documentos de la declaración antes de firmarlos.",
       acknowledgmentTitle: "Aceptación:",
       acknowledgmentP1: "Para confirmar que esta carta refleja correctamente su entendimiento y aceptación de los términos de este compromiso, por favor firme y devuelva una copia de la misma.",
-      acknowledgmentP2: `Gracias por confiar a ${firmName} sus asuntos fiscales.`,
-      signatureSection: "Firma Electrónica del Cliente",
+      acknowledgmentP2: `Gracias,<br/><br/>${firmName}`,
+      signatureSection: "Aceptado por:",
       signedBy: "Firmado Por",
       signatureType: "Tipo de Firma",
       signatureTypeDrawn: "Firma Electrónica Dibujada a Mano",
@@ -334,7 +868,7 @@ export default function TaxesTab({
       taxYear: "Tax Year",
       dateSigned: "Date Signed",
       greeting: `Dear ${clientName}:`,
-      intro: `Thank you for choosing ${firmName} ("Firm," "we," "us," or "our") to assist you with your ${currentYear} federal and state income tax filings. This letter confirms the terms of our engagement and outlines the nature and scope of the services we will provide.`,
+      intro: `Thank you for choosing ${firmName} ("Firm," "we," "us," or "our") to assist you with your ${selectedTaxYear} federal and state income tax filings. This letter confirms the terms of our engagement and outlines the nature and scope of the services we will provide.`,
       scopeTitle: "Scope of Services:",
       scopeP1: "We will review your current federal and state income tax returns. We will depend on you to provide the information we need to complete an accurate assessment and provide recommendations. We may ask you to clarify some items but will not audit or otherwise verify the data you submit. Review or revision of prior year(s) returns is also available at an additional charge.",
       scopeP2: "Review or revision of prior-year tax returns is outside the scope of this engagement unless separately agreed to in writing and may be subject to additional fees.",
@@ -354,8 +888,8 @@ export default function TaxesTab({
       conclusionP2: "Our engagement to prepare your tax returns will conclude with the delivery of our analysis of your return along with any recommended clarifications or corrections. If you have not selected to e-file your returns with our office, you will be solely responsible to file the returns with the appropriate taxing authorities. Review all tax-return documents carefully before signing them.",
       acknowledgmentTitle: "Acknowledgment:",
       acknowledgmentP1: "Please sign and return a copy of this letter to confirm that it accurately reflects your understanding of and agreement with the terms of this engagement.",
-      acknowledgmentP2: `Thank you for entrusting ${firmName} with your tax matters.`,
-      signatureSection: "Client Electronic Signature",
+      acknowledgmentP2: `Thank you,<br/><br/>${firmName}`,
+      signatureSection: "Accepted by:",
       signedBy: "Signed By",
       signatureType: "Signature Type",
       signatureTypeDrawn: "Hand-drawn Electronic Signature",
@@ -381,7 +915,7 @@ export default function TaxesTab({
 <html lang="${isSpanish ? 'es' : 'en'}">
 <head>
   <meta charset="UTF-8">
-  <title>${content.title} - ${currentYear}</title>
+  <title>${content.title} - ${selectedTaxYear}</title>
   <style>
     /* Reset and isolation - prevent inheritance of modern CSS color functions */
     * {
@@ -461,6 +995,10 @@ export default function TaxesTab({
       border-radius: 8px;
       background-color: #fafafa;
     }
+    .signature-separator {
+      margin-top: 30px;
+      border-top: 2px solid #8B2323;
+    }
     .signature-section h3 {
       margin: 0 0 15px 0;
       color: #8B2323;
@@ -531,7 +1069,7 @@ export default function TaxesTab({
 
   <h1>${content.title}</h1>
   <div class="header-info">
-    <p><strong>${content.taxYear}:</strong> ${currentYear}</p>
+    <p><strong>${content.taxYear}:</strong> ${selectedTaxYear}</p>
     <p><strong>${content.dateSigned}:</strong> ${signedDate}</p>
   </div>
   
@@ -566,6 +1104,8 @@ export default function TaxesTab({
   <h2>${content.acknowledgmentTitle}</h2>
   <p>${content.acknowledgmentP1}</p>
   <p>${content.acknowledgmentP2}</p>
+
+  <div class="signature-separator"></div>
   
   <div class="signature-section">
     <h3>${content.signatureSection}</h3>
@@ -579,13 +1119,13 @@ export default function TaxesTab({
 
   <div class="verification-box">
     <h3>${content.verificationTitle}</h3>
-    <p><strong>${content.documentId}:</strong> ENG-${currentYear}-${user?.id.slice(0, 8).toUpperCase()}</p>
+    <p><strong>${content.documentId}:</strong> ENG-${selectedTaxYear}-${user?.id.slice(0, 8).toUpperCase()}</p>
     <p><strong>${content.timestamp}:</strong> ${sigData.signedAt}</p>
     <p><strong>${content.signer}:</strong> ${sigData.signerName}</p>
     <p><strong>${content.signatureMethod}:</strong> ${sigData.signatureType === "draw" ? content.signatureMethodDrawn : content.signatureMethodTyped}</p>
-    <p><strong>${content.device}:</strong> ${sigData.userAgent.slice(0, 100)}...</p>
     <p class="verification-note">${content.verificationNote}</p>
   </div>
+  <!-- Device metadata stored but not displayed: ${sigData.userAgent} -->
 
   <div class="footer">
     ${logoDataUrl ? `<img src="${logoDataUrl}" alt="IC Multi Services Logo" />` : ``}
@@ -696,7 +1236,7 @@ export default function TaxesTab({
       // Clean up iframe
       document.body.removeChild(iframe);
 
-      const fileName = `${currentYear}_Engagement_Letter_${clientName.replace(/\s+/g, "_")}_signed.pdf`;
+      const fileName = `${clientName} ${selectedTaxYear} Engagement Letter.pdf`;
       const filePath = `${user.id}/${fileName}`;
 
       // Upload PDF to Supabase storage
@@ -715,7 +1255,7 @@ export default function TaxesTab({
         .select("id")
         .eq("user_id", user.id)
         .eq("doctype", "Engagement Letter")
-        .eq("year", currentYear)
+        .eq("year", selectedTaxYear)
         .maybeSingle();
 
       if (checkError) throw checkError;
@@ -725,7 +1265,7 @@ export default function TaxesTab({
         const { error: updateError } = await supabase
           .from("user_documents")
           .update({
-            title: `${currentYear} Engagement Letter`,
+            title: `${selectedTaxYear} Engagement Letter`,
             file_path: filePath,
             file_type: "application/pdf",
             size: pdfBlob.size,
@@ -739,9 +1279,9 @@ export default function TaxesTab({
           .from("user_documents")
           .insert({
             user_id: user.id,
-            title: `${currentYear} Engagement Letter`,
+            title: `${selectedTaxYear} Engagement Letter`,
             doctype: "Engagement Letter",
-            year: currentYear,
+            year: selectedTaxYear,
             file_path: filePath,
             file_type: "application/pdf",
             size: pdfBlob.size
@@ -752,7 +1292,9 @@ export default function TaxesTab({
 
       // Notify parent to refresh engagement status from database
       onEngagementSigned();
-      alert("Engagement letter signed and saved as PDF successfully!");
+
+      // Ask whether to download now or continue.
+      setShowEngagementNextStepPrompt(true);
     } catch (error: any) {
       console.error("Error signing engagement letter:", error);
       alert("Error signing engagement letter: " + error.message);
@@ -771,7 +1313,7 @@ export default function TaxesTab({
         .select("file_path, title")
         .eq("user_id", user.id)
         .eq("doctype", "Engagement Letter")
-        .eq("year", currentYear)
+        .eq("year", selectedTaxYear)
         .single();
 
       if (docError) throw docError;
@@ -787,7 +1329,7 @@ export default function TaxesTab({
         const url = URL.createObjectURL(fileData);
         const link = document.createElement("a");
         link.href = url;
-        link.download = doc.file_path.split("/").pop() || `${currentYear}_Engagement_Letter.pdf`;
+        link.download = doc.file_path.split("/").pop() || `${profile?.first_name} ${profile?.last_name} ${selectedTaxYear} Engagement Letter.pdf`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -799,26 +1341,70 @@ export default function TaxesTab({
     }
   };
 
+  const handleEngagementContinue = () => {
+    setShowEngagementNextStepPrompt(false);
+    setActiveSection("questionnaire");
+  };
+
+  const handleEngagementDownloadThenContinue = async () => {
+    try {
+      await handleDownloadEngagement();
+    } finally {
+      setShowEngagementNextStepPrompt(false);
+      setActiveSection("questionnaire");
+    }
+  };
+
   const sections = [
     { id: "engagement" as TaxSection, label: profile?.preferred_language === "es" ? "Carta de Compromiso" : "Engagement Letter", icon: FileSignature, completed: engagementSigned },
-    { id: "questionnaire" as TaxSection, label: profile?.preferred_language === "es" ? "Cuestionario" : "Questionnaire", icon: ClipboardList, completed: answers.filter(a => a.answer !== null).length === questionnaireQuestions.length },
+    { id: "questionnaire" as TaxSection, label: profile?.preferred_language === "es" ? "Cuestionario" : "Questionnaire", icon: ClipboardList, completed: questionnaireQuestions.every((q) => {
+      const v = answers.find((a) => a.questionId === q.id)?.value;
+      if (q.responseType === "yesno") return v === "yes" || v === "no" || v === "na";
+      return typeof v === "string" && v.trim().length > 0;
+    }) },
     { id: "checklist" as TaxSection, label: profile?.preferred_language === "es" ? "Lista de Documentos" : "Document Checklist", icon: FolderCheck, completed: checklist.filter(c => c.required).every(c => c.status !== "pending") },
   ];
 
   // Group questions by category
-  const groupedQuestions = questionnaireQuestions.reduce((acc, q) => {
-    if (!acc[q.category]) acc[q.category] = [];
-    acc[q.category].push(q);
-    return acc;
-  }, {} as Record<string, typeof questionnaireQuestions>);
+  const groupedQuestions = questionnaireQuestions
+    .slice()
+    .sort((a, b) => a.order - b.order)
+    .reduce((acc, q) => {
+      if (!acc[q.section]) acc[q.section] = [];
+      acc[q.section].push(q);
+      return acc;
+    }, {} as Record<string, QuestionnaireQuestion[]>);
+
+  const answersById = new Map(answers.map((a) => [a.questionId, a.value] as const));
+  const isQuestionnaireComplete = questionnaireQuestions.every((q) => {
+    const v = answersById.get(q.id);
+    if (q.responseType === "yesno") return v === "yes" || v === "no" || v === "na";
+    return typeof v === "string" && v.trim().length > 0;
+  });
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-zinc-900 dark:text-white sm:text-3xl">
-          {currentYear} Tax Questionnaire
-        </h1>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-zinc-900 dark:text-white sm:text-3xl">
+              {selectedTaxYear} Tax Questionnaire
+            </h1>
+            <select
+              value={selectedTaxYear}
+              onChange={(e) => onSelectedTaxYearChange(Number(e.target.value))}
+              className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+              aria-label="Select tax year"
+            >
+              {taxYears.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
         <p className="mt-2 text-zinc-600 dark:text-zinc-400">
           Complete the following steps to finalize your tax preparation documents.
         </p>
@@ -845,7 +1431,7 @@ export default function TaxesTab({
                       isCompleted
                         ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
                         : isActive
-                        ? "bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400"
+                        ? "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400"
                         : "bg-zinc-100 text-zinc-400 dark:bg-zinc-800"
                     }`}
                   >
@@ -853,7 +1439,7 @@ export default function TaxesTab({
                   </div>
                   <span
                     className={`text-sm font-medium ${
-                      isActive ? "text-pink-600 dark:text-pink-400" : "text-zinc-600 dark:text-zinc-400"
+                      isActive ? "text-red-600 dark:text-red-400" : "text-zinc-600 dark:text-zinc-400"
                     }`}
                   >
                     {section.label}
@@ -875,7 +1461,7 @@ export default function TaxesTab({
           </div>
           <div className="h-2 w-full rounded-full bg-zinc-100 dark:bg-zinc-800">
             <div
-              className="h-2 rounded-full bg-pink-600 transition-all duration-300"
+              className="h-2 rounded-full bg-red-600 transition-all duration-300"
               style={{ width: `${calculateProgress()}%` }}
             />
           </div>
@@ -890,10 +1476,14 @@ export default function TaxesTab({
             <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-zinc-900">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
-                  {currentYear}_{profile?.preferred_language === "es" ? "Carta_de_Compromiso" : "Engagement_Letter"}.pdf
+                  {profile?.first_name} {profile?.last_name} {currentYear} {profile?.preferred_language === "es" ? "Carta de Compromiso" : "Engagement Letter"}.pdf
                 </h2>
                 <div className="flex gap-2">
-                  <button className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300">
+                  <button
+                    onClick={handleDownloadEngagement}
+                    className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                    title={profile?.preferred_language === "es" ? "Descargar" : "Download"}
+                  >
                     <Download size={18} />
                   </button>
                 </div>
@@ -978,9 +1568,9 @@ export default function TaxesTab({
                         </p>
                       </div>
 
-                      <div className="pt-4 border-t border-zinc-200 dark:border-zinc-700 flex justify-between items-end">
+                      <div className="pt-4 border-t-2 border-red-600 flex justify-between items-end">
                         <div>
-                          <p className="text-xs text-zinc-500 uppercase">Firma del Cliente</p>
+                          <p className="text-xs text-zinc-500 uppercase">Aceptado por:</p>
                           <p className="italic text-zinc-400">
                             {engagementSigned ? `${profile?.first_name} ${profile?.last_name}` : "Firme electrónicamente a continuación..."}
                           </p>
@@ -1063,9 +1653,9 @@ export default function TaxesTab({
                         </p>
                       </div>
 
-                      <div className="pt-4 border-t border-zinc-200 dark:border-zinc-700 flex justify-between items-end">
+                      <div className="pt-4 border-t-2 border-red-600 flex justify-between items-end">
                         <div>
-                          <p className="text-xs text-zinc-500 uppercase">Client Signature</p>
+                          <p className="text-xs text-zinc-500 uppercase">Accepted by:</p>
                           <p className="italic text-zinc-400">
                             {engagementSigned ? `${profile?.first_name} ${profile?.last_name}` : "Sign electronically below..."}
                           </p>
@@ -1086,7 +1676,7 @@ export default function TaxesTab({
                   <button
                     onClick={handleOpenSignaturePad}
                     disabled={signingEngagement}
-                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-pink-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-pink-500 disabled:opacity-50"
+                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:opacity-50"
                   >
                     {signingEngagement ? (
                       <>
@@ -1105,20 +1695,49 @@ export default function TaxesTab({
                   </button>
                 </div>
               ) : (
-                <div className="flex items-center gap-3 rounded-lg bg-green-50 border border-green-200 p-4 dark:bg-green-900/20 dark:border-green-900">
-                  <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
-                  <span className="text-sm font-medium text-green-700 dark:text-green-300">
-                    {profile?.preferred_language === "es" 
-                      ? `Documento firmado exitosamente el ${new Date().toLocaleDateString("es-ES")}`
-                      : `Document signed successfully on ${new Date().toLocaleDateString()}`}
-                  </span>
-                  <button 
-                    onClick={handleDownloadEngagement}
-                    className="ml-auto text-sm font-medium text-green-600 hover:text-green-700 dark:text-green-400 flex items-center gap-1"
-                  >
-                    <Download size={14} />
-                    {profile?.preferred_language === "es" ? "Descargar Copia" : "Download Copy"}
-                  </button>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 rounded-lg bg-green-50 border border-green-200 p-4 dark:bg-green-900/20 dark:border-green-900">
+                    <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                    <span className="text-sm font-medium text-green-700 dark:text-green-300">
+                      {profile?.preferred_language === "es" 
+                        ? `Documento firmado exitosamente el ${new Date().toLocaleDateString("es-ES")}`
+                        : `Document signed successfully on ${new Date().toLocaleDateString()}`}
+                    </span>
+                  </div>
+
+                  {showEngagementNextStepPrompt ? (
+                    <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+                      <p className="text-sm font-medium text-zinc-900 dark:text-white">
+                        {profile?.preferred_language === "es"
+                          ? "¿Desea descargar su copia ahora o continuar al cuestionario?"
+                          : "Would you like to download your copy now, or continue to the questionnaire?"}
+                      </p>
+                      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                        <button
+                          onClick={handleEngagementDownloadThenContinue}
+                          className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+                        >
+                          <Download size={16} />
+                          {profile?.preferred_language === "es" ? "Descargar y continuar" : "Download and continue"}
+                        </button>
+                        <button
+                          onClick={handleEngagementContinue}
+                          className="inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700"
+                        >
+                          {profile?.preferred_language === "es" ? "Continuar" : "Continue"}
+                          <ChevronRight size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleDownloadEngagement}
+                      className="text-sm font-medium text-green-600 hover:text-green-700 dark:text-green-400 flex items-center gap-1"
+                    >
+                      <Download size={14} />
+                      {profile?.preferred_language === "es" ? "Descargar Copia" : "Download Copy"}
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -1145,49 +1764,52 @@ export default function TaxesTab({
                     </h3>
                     <div className="space-y-4">
                       {questions.map((q) => {
-                        const currentAnswer = answers.find((a) => a.questionId === q.id);
+                        const currentValue = answersById.get(q.id);
                         return (
                           <div
                             key={q.id}
                             className="rounded-lg border border-zinc-100 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-800/50"
                           >
                             <p className="text-sm font-medium text-zinc-900 dark:text-white mb-3">
-                              {q.question}
+                              {formatQuestionTemplate(getQuestionTemplate(q, profile?.preferred_language), selectedTaxYear)}
                             </p>
-                            <div className="flex flex-wrap gap-2">
-                              {(["yes", "no", "na"] as const).map((option) => (
-                                <button
-                                  key={option}
-                                  onClick={() => handleAnswerChange(q.id, option)}
-                                  className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                                    currentAnswer?.answer === option
+                            {q.responseType === "yesno" ? (
+                              <div className="flex flex-wrap gap-2">
+                                {(["yes", "no", "na"] as const).map((option) => (
+                                  <button
+                                    key={option}
+                                    onClick={() => handleAnswerChange(q.id, option)}
+                                    className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                                      currentValue === option
+                                        ? option === "yes"
+                                          ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                                          : option === "no"
+                                          ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                                          : "bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300"
+                                        : "bg-white border border-zinc-200 text-zinc-600 hover:bg-zinc-50 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-700"
+                                    }`}
+                                  >
+                                    {option === "yes" && <Check size={14} />}
+                                    {option === "no" && <X size={14} />}
+                                    {option === "na" && <Minus size={14} />}
+                                    {option === "na"
+                                      ? "N/A"
+                                      : profile?.preferred_language === "es"
                                       ? option === "yes"
-                                        ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                                        : option === "no"
-                                        ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                                        : "bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300"
-                                      : "bg-white border border-zinc-200 text-zinc-600 hover:bg-zinc-50 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-700"
-                                  }`}
-                                >
-                                  {option === "yes" && <Check size={14} />}
-                                  {option === "no" && <X size={14} />}
-                                  {option === "na" && <Minus size={14} />}
-                                  {option === "na" ? "N/A" : option.charAt(0).toUpperCase() + option.slice(1)}
-                                </button>
-                              ))}
-                            </div>
-                            {q.hasNotes && currentAnswer?.answer && currentAnswer.answer !== "na" && (
-                              <div className="mt-3">
-                                <textarea
-                                  placeholder="Add notes or details (optional)"
-                                  value={currentAnswer?.notes || ""}
-                                  onChange={(e) =>
-                                    handleAnswerChange(q.id, currentAnswer.answer, e.target.value)
-                                  }
-                                  rows={2}
-                                  className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm placeholder:text-zinc-400 focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
-                                />
+                                        ? "Sí"
+                                        : "No"
+                                      : option.charAt(0).toUpperCase() + option.slice(1)}
+                                  </button>
+                                ))}
                               </div>
+                            ) : (
+                              <textarea
+                                placeholder={profile?.preferred_language === "es" ? "Ingrese su respuesta" : "Enter your response"}
+                                value={typeof currentValue === "string" ? currentValue : ""}
+                                onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                                rows={3}
+                                className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm placeholder:text-zinc-400 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                              />
                             )}
                           </div>
                         );
@@ -1195,6 +1817,27 @@ export default function TaxesTab({
                     </div>
                   </div>
                 ))}
+
+                <div className="pt-6 border-t border-zinc-100 dark:border-zinc-800">
+                  <button
+                    onClick={saveQuestionnairePdf}
+                    disabled={!isQuestionnaireComplete || savingQuestionnairePdf}
+                    className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+                    title={isQuestionnaireComplete ? "Save questionnaire as PDF" : "Complete all questions to enable PDF generation"}
+                  >
+                    {savingQuestionnairePdf ? (
+                      <>
+                        <Loader2 size={18} className="animate-spin" />
+                        {profile?.preferred_language === "es" ? "Guardando PDF..." : "Saving PDF..."}
+                      </>
+                    ) : (
+                      <>
+                        <FileSignature size={18} />
+                        {profile?.preferred_language === "es" ? "Guardar PDF del Cuestionario" : "Save Questionnaire PDF"}
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -1241,7 +1884,7 @@ export default function TaxesTab({
                           <p className="text-sm font-medium text-zinc-900 dark:text-white">
                             {item.label}
                             {item.required && (
-                              <span className="ml-2 text-xs text-pink-600 dark:text-pink-400">Required</span>
+                              <span className="ml-2 text-xs text-red-600 dark:text-red-400">Required</span>
                             )}
                           </p>
                           <p className="text-xs text-zinc-500 dark:text-zinc-400">
@@ -1256,7 +1899,7 @@ export default function TaxesTab({
 
                       {item.status === "pending" && (
                         <div className="flex items-center gap-2">
-                          <label className="inline-flex items-center gap-1.5 cursor-pointer rounded-lg bg-pink-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-pink-500">
+                          <label className="inline-flex items-center gap-1.5 cursor-pointer rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-red-700">
                             {uploading === item.id ? (
                               <Loader2 className="h-3 w-3 animate-spin" />
                             ) : (
@@ -1314,7 +1957,7 @@ export default function TaxesTab({
           </div>
 
           {/* Need Help */}
-          <div className="rounded-2xl border border-pink-200 bg-gradient-to-br from-pink-50 to-white p-6 shadow-sm dark:border-pink-900/50 dark:from-pink-900/20 dark:to-zinc-900">
+          <div className="rounded-2xl border border-red-200 bg-gradient-to-br from-red-50 to-white p-6 shadow-sm dark:border-red-900/50 dark:from-red-900/20 dark:to-zinc-900">
             <h3 className="font-semibold text-zinc-900 dark:text-white mb-2">Need help?</h3>
             <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
               Your dedicated tax professional is here to assist with any questions.
@@ -1330,7 +1973,7 @@ export default function TaxesTab({
             <h3 className="font-semibold text-zinc-900 dark:text-white mb-4">Activity Log</h3>
             <div className="space-y-4">
               <div className="flex gap-3">
-                <div className="flex h-2 w-2 mt-2 rounded-full bg-pink-600" />
+                <div className="flex h-2 w-2 mt-2 rounded-full bg-red-600" />
                 <div>
                   <p className="text-sm font-medium text-zinc-900 dark:text-white">Session started</p>
                   <p className="text-xs text-zinc-500">
