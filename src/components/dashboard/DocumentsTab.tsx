@@ -11,7 +11,6 @@ import {
   CheckCircle,
   Clock,
   Eye,
-  MoreVertical,
   FolderOpen,
   Building2,
   User,
@@ -187,6 +186,31 @@ export default function DocumentsTab({
     }
   };
 
+  // Download document handler
+  const handleDownload = async (doc: { file_path: string; title?: string }, bucket: string = "documents") => {
+    try {
+      const { data: fileData, error: downloadError } = await supabase.storage
+        .from(bucket)
+        .download(doc.file_path);
+      
+      if (downloadError) throw downloadError;
+      if (fileData) {
+        // Create a download link with proper filename
+        const url = URL.createObjectURL(fileData);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = doc.file_path.split("/").pop() || doc.title || "document";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+    } catch (err: any) {
+      alert("Error downloading file: " + err.message);
+      console.error(err);
+    }
+  };
+
   const getFileIcon = (type: string) => {
     if (type?.includes("pdf")) return "📄";
     if (type?.includes("image")) return "🖼️";
@@ -295,7 +319,11 @@ export default function DocumentsTab({
                         </div>
                       </div>
                     </div>
-                    <button className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700">
+                    <button 
+                      onClick={() => handleDownload(doc, "tax_returns")}
+                      className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                      title="Download"
+                    >
                       <Download size={18} />
                     </button>
                   </div>
@@ -372,8 +400,12 @@ export default function DocumentsTab({
                         </div>
                       </div>
                     </div>
-                    <button className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300">
-                      <MoreVertical size={18} />
+                    <button 
+                      onClick={() => handleDownload(doc)}
+                      className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                      title="Download"
+                    >
+                      <Download size={18} />
                     </button>
                   </div>
                 ))}

@@ -65,6 +65,7 @@ export default function ClientDetailPage() {
   // Data State
   const [profile, setProfile] = useState<ClientProfile | null>(null);
   const [docs, setDocs] = useState<UnifiedDoc[]>([]);
+  const [engagementLetter, setEngagementLetter] = useState<UnifiedDoc | null>(null);
   const [loading, setLoading] = useState(true);
 
   // UI State
@@ -110,7 +111,7 @@ export default function ClientDetailPage() {
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 8 }, (_, i) => currentYear - i);
-  const docTypes = ["Legal Docs", "Banking Info", "Income", "Expenses", "Letters", "Other"];
+  const docTypes = ["Engagement Letter", "Legal Docs", "Banking Info", "Income", "Expenses", "Letters", "Other"];
 
   useEffect(() => {
     loadData();
@@ -129,11 +130,17 @@ export default function ClientDetailPage() {
       if (pError) console.error("Profile Error:", pError);
       setProfile(p);
 
+      // Reset engagement letter state
+      setEngagementLetter(null);
+
       // 2. Fetch User Documents
       const { data: userDocs, error: dError } = await supabase
         .from("user_documents")
         .select("*")
         .eq("user_id", clientId);
+
+      if (dError) console.error("User Documents Error:", dError);
+      console.log("Fetched user documents for client:", clientId, userDocs);
 
       // 3. Fetch Tax Returns
       const { data: taxReturns, error: tError } = await supabase
@@ -141,21 +148,29 @@ export default function ClientDetailPage() {
         .select("*")
         .eq("user_id", clientId);
 
+      if (tError) console.error("Tax Returns Error:", tError);
+
       // 4. Merge
       const unified: UnifiedDoc[] = [];
 
       (userDocs || []).forEach((d: any) => {
-        unified.push({
+        const docEntry: UnifiedDoc = {
           id: d.id,
           title: d.title || d.name,
           date: d.created_at,
           type: d.doctype || "Document",
-          status: "Uploaded", // User docs don't have status usually
+          status: "Uploaded",
           size: d.size,
           source: "doc",
           file_path: d.file_path,
           year: d.year,
-        });
+        };
+        unified.push(docEntry);
+        
+        // Track engagement letter separately
+        if (d.doctype === "Engagement Letter" && d.year === currentYear) {
+          setEngagementLetter(docEntry);
+        }
       });
 
       (taxReturns || []).forEach((t: any) => {
@@ -188,13 +203,23 @@ export default function ClientDetailPage() {
   async function handleDownload(doc: UnifiedDoc) {
     try {
       const bucket = doc.source === "return" ? "tax_returns" : "documents";
-      const { data, error } = await supabase.storage
-        .from(bucket)
-        .createSignedUrl(doc.file_path, 3600);
       
-      if (error) throw error;
-      if (data?.signedUrl) {
-        window.open(data.signedUrl, "_blank");
+      // Download the file directly for proper file download
+      const { data: fileData, error: downloadError } = await supabase.storage
+        .from(bucket)
+        .download(doc.file_path);
+      
+      if (downloadError) throw downloadError;
+      if (fileData) {
+        // Create a download link with proper filename
+        const url = URL.createObjectURL(fileData);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = doc.file_path.split("/").pop() || doc.title || "document";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
       }
     } catch (err) {
       alert("Error downloading file");
@@ -532,6 +557,41 @@ export default function ClientDetailPage() {
                     <div className="rounded-full bg-green-100 p-2 text-green-600 dark:bg-green-900/30 dark:text-green-400">
                         <Check className="h-5 w-5" />
                     </div>
+                </div>
+            </div>
+            {/* Engagement Letter Status */}
+            <div className={`rounded-2xl border p-6 shadow-sm ${
+              engagementLetter 
+                ? "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20" 
+                : "border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20"
+            }`}>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <div className={`text-sm font-medium ${engagementLetter ? "text-green-700 dark:text-green-300" : "text-amber-700 dark:text-amber-300"}`}>
+                          {currentYear} Engagement Letter
+                        </div>
+                        <div className={`mt-1 text-lg font-bold ${engagementLetter ? "text-green-800 dark:text-green-200" : "text-amber-800 dark:text-amber-200"}`}>
+                          {engagementLetter ? "Signed" : "Pending"}
+                        </div>
+                        {engagementLetter && (
+                          <div className="mt-1 text-xs text-green-600 dark:text-green-400">
+                            {new Date(engagementLetter.date).toLocaleDateString()}
+                          </div>
+                        )}
+                    </div>
+                    {engagementLetter ? (
+                      <button
+                        onClick={() => handleDownload(engagementLetter)}
+                        className="rounded-full bg-green-100 p-2 text-green-600 hover:bg-green-200 dark:bg-green-900/50 dark:text-green-400 dark:hover:bg-green-900"
+                        title="Download Engagement Letter"
+                      >
+                        <Download className="h-5 w-5" />
+                      </button>
+                    ) : (
+                      <div className="rounded-full bg-amber-100 p-2 text-amber-600 dark:bg-amber-900/50 dark:text-amber-400">
+                        <FileText className="h-5 w-5" />
+                      </div>
+                    )}
                 </div>
             </div>
         </div>

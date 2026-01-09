@@ -10,14 +10,17 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.89.0",
+    "@types/react-signature-canvas": "^1.0.7",
     "browser-image-compression": "^2.0.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "html2pdf.js": "^0.13.0",
     "lucide-react": "^0.562.0",
     "next": "16.1.1",
     "next-themes": "^0.4.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-signature-canvas": "^1.1.0-alpha.2",
     "resend": "^6.7.0",
     "tailwind-merge": "^3.4.0"
   },
