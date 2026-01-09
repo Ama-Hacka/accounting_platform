@@ -19,6 +19,7 @@ interface Profile {
   last_name?: string;
   phone_number?: string;
   address?: string;
+  preferred_language?: "en" | "es";
 }
 
 export default function DashboardPage() {
@@ -34,21 +35,71 @@ export default function DashboardPage() {
   // Data states
   const [documents, setDocuments] = useState<any[]>([]);
   const [taxReturns, setTaxReturns] = useState<any[]>([]);
+  
+  // Engagement letter status - verified from database
+  const [engagementSigned, setEngagementSigned] = useState(false);
 
   // Questionnaire state
   const [questionnaireStatus, setQuestionnaireStatus] = useState<"not_started" | "in_progress" | "submitted">("not_started");
   const [questionnaireProgress, setQuestionnaireProgress] = useState(0);
 
+  const currentYear = new Date().getFullYear();
+
   useEffect(() => {
     getProfile();
   }, []);
 
+  // Fetch all data when user is available
   useEffect(() => {
     if (user) {
-      fetchDocuments(user.id);
-      fetchTaxReturns(user.id);
+      fetchAllData(user.id);
     }
   }, [user]);
+
+  // Re-check engagement status whenever documents change
+  useEffect(() => {
+    if (user && documents) {
+      checkEngagementStatus(user.id);
+    }
+  }, [user, documents]);
+
+  // Check engagement letter status from database
+  async function checkEngagementStatus(userId: string) {
+    try {
+      // Add timestamp to prevent any potential caching
+      const { data, error } = await supabase
+        .from("user_documents")
+        .select("id, created_at")
+        .eq("user_id", userId)
+        .eq("doctype", "Engagement Letter")
+        .eq("year", currentYear)
+        .maybeSingle();
+
+      // Debug logging - check browser console
+      console.log("[Engagement Check]", {
+        userId,
+        year: currentYear,
+        data,
+        error,
+        hasEngagement: data !== null && !error
+      });
+
+      // Only set to true if we actually found a record
+      setEngagementSigned(data !== null && !error);
+    } catch (error) {
+      console.error("Error checking engagement status:", error);
+      setEngagementSigned(false);
+    }
+  }
+
+  // Fetch all data at once
+  async function fetchAllData(userId: string) {
+    await Promise.all([
+      fetchDocuments(userId),
+      fetchTaxReturns(userId),
+      checkEngagementStatus(userId)
+    ]);
+  }
 
   async function getProfile() {
     try {
@@ -79,6 +130,7 @@ export default function DashboardPage() {
           last_name: profileData.last_name || "",
           phone_number: profileData.phone_number || "",
           address: profileData.address || "",
+          preferred_language: profileData.preferred_language || "en",
         });
       }
     } catch (error) {
@@ -117,6 +169,7 @@ export default function DashboardPage() {
     lastName: string;
     phoneNumber: string;
     address: string;
+    preferredLanguage: "en" | "es";
     newPassword?: string;
   }) => {
     if (!user) return;
@@ -128,6 +181,7 @@ export default function DashboardPage() {
       last_name: data.lastName,
       phone_number: data.phoneNumber,
       address: data.address,
+      preferred_language: data.preferredLanguage,
       updated_at: new Date().toISOString(),
     });
 
@@ -147,6 +201,7 @@ export default function DashboardPage() {
       last_name: data.lastName,
       phone_number: data.phoneNumber,
       address: data.address,
+      preferred_language: data.preferredLanguage,
     });
   };
 
@@ -157,6 +212,14 @@ export default function DashboardPage() {
     },
     []
   );
+
+  // Callback to refresh data after engagement letter is signed
+  const handleEngagementSigned = useCallback(() => {
+    if (user) {
+      fetchDocuments(user.id);
+      checkEngagementStatus(user.id);
+    }
+  }, [user]);
 
   const handleDocumentUploaded = () => {
     if (user) {
@@ -218,6 +281,8 @@ export default function DashboardPage() {
           <TaxesTab
             user={user}
             profile={profile}
+            engagementSigned={engagementSigned}
+            onEngagementSigned={handleEngagementSigned}
             questionnaireStatus={questionnaireStatus}
             questionnaireProgress={questionnaireProgress}
             onStatusChange={handleQuestionnaireStatusChange}

@@ -21,6 +21,7 @@ interface ProfileTabProps {
     last_name?: string;
     phone_number?: string;
     address?: string;
+    preferred_language?: "en" | "es";
   } | null;
   email: string;
   onUpdateProfile: (data: {
@@ -28,6 +29,7 @@ interface ProfileTabProps {
     lastName: string;
     phoneNumber: string;
     address: string;
+    preferredLanguage: "en" | "es";
     newPassword?: string;
   }) => Promise<void>;
 }
@@ -56,7 +58,7 @@ export default function ProfileTab({
   // Preferences
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [smsNotifications, setSmsNotifications] = useState(false);
-  const [preferredLanguage, setPreferredLanguage] = useState("en");
+  const [preferredLanguage, setPreferredLanguage] = useState<"en" | "es">(profile?.preferred_language || "en");
 
   const sections = [
     { id: "personal" as ProfileSection, label: "Personal Information", icon: User },
@@ -81,6 +83,7 @@ export default function ProfileTab({
         lastName,
         phoneNumber,
         address,
+        preferredLanguage,
         newPassword: newPassword || undefined,
       });
       
@@ -343,7 +346,7 @@ export default function ProfileTab({
                       </label>
                       <select
                         value={preferredLanguage}
-                        onChange={(e) => setPreferredLanguage(e.target.value)}
+                        onChange={(e) => setPreferredLanguage(e.target.value as "en" | "es")}
                         className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
                       >
                         <option value="en">English</option>

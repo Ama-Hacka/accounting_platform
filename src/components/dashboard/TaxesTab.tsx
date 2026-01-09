@@ -22,17 +22,13 @@ import { supabase } from "@/lib/supabaseClient";
 import imageCompression from "browser-image-compression";
 import SignaturePad, { SignatureData } from "@/components/SignaturePad";
 
-// Dynamic import for html2pdf.js (client-side only)
-let html2pdf: any = null;
-if (typeof window !== "undefined") {
-  import("html2pdf.js").then((module) => {
-    html2pdf = module.default;
-  });
-}
+// Note: jsPDF and html2canvas are dynamically imported when needed for PDF generation
 
 interface TaxesTabProps {
   user: any;
-  profile: { first_name?: string; last_name?: string } | null;
+  profile: { first_name?: string; last_name?: string; preferred_language?: "en" | "es" } | null;
+  engagementSigned: boolean;
+  onEngagementSigned: () => void;
   questionnaireStatus: "not_started" | "in_progress" | "submitted";
   questionnaireProgress: number;
   onStatusChange: (status: "not_started" | "in_progress" | "submitted", progress: number) => void;
@@ -135,13 +131,14 @@ const initialChecklist: ChecklistItem[] = [
 export default function TaxesTab({
   user,
   profile,
+  engagementSigned,
+  onEngagementSigned,
   questionnaireStatus,
   questionnaireProgress,
   onStatusChange,
 }: TaxesTabProps) {
   const currentYear = new Date().getFullYear();
   const [activeSection, setActiveSection] = useState<TaxSection>("engagement");
-  const [engagementSigned, setEngagementSigned] = useState(false);
   const [signingEngagement, setSigningEngagement] = useState(false);
   const [showSignaturePad, setShowSignaturePad] = useState(false);
   const [signatureData, setSignatureData] = useState<SignatureData | null>(null);
@@ -170,32 +167,6 @@ export default function TaxesTab({
 
     return Math.round((completed / total) * 100);
   }, [engagementSigned, answers, checklist]);
-
-  // Check if engagement letter is already signed
-  useEffect(() => {
-    const checkEngagementStatus = async () => {
-      if (!user) return;
-      
-      try {
-        const { data, error } = await supabase
-          .from("user_documents")
-          .select("id")
-          .eq("user_id", user.id)
-          .eq("doctype", "Engagement Letter")
-          .eq("year", currentYear)
-          .single();
-
-        if (data && !error) {
-          setEngagementSigned(true);
-        }
-      } catch (error) {
-        // No engagement letter found, which is fine
-        console.log("No engagement letter found yet");
-      }
-    };
-
-    checkEngagementStatus();
-  }, [user, currentYear]);
 
   // Update parent component with progress changes
   useEffect(() => {
@@ -287,104 +258,339 @@ export default function TaxesTab({
     await saveSignedEngagementLetter(sigData);
   };
 
-  // Generate engagement letter HTML content
-  const generateEngagementLetterHTML = (sigData: SignatureData) => {
+  // Generate engagement letter HTML content with PDF-safe styles (no modern CSS color functions)
+  const generateEngagementLetterHTML = async (sigData: SignatureData) => {
     const firmName = "IC Multi Services, LLC";
     const clientName = `${profile?.first_name} ${profile?.last_name}`;
-    const signedDate = new Date(sigData.signedAt).toLocaleDateString("en-US", { 
+    const isSpanish = profile?.preferred_language === "es";
+    const signedDate = new Date(sigData.signedAt).toLocaleDateString(isSpanish ? "es-ES" : "en-US", { 
       year: "numeric", 
       month: "long", 
       day: "numeric" 
     });
-    const signedTime = new Date(sigData.signedAt).toLocaleTimeString("en-US", {
+    const signedTime = new Date(sigData.signedAt).toLocaleTimeString(isSpanish ? "es-ES" : "en-US", {
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
       timeZoneName: "short"
     });
 
+    // Fetch and embed the SVG logo as base64 for PDF
+    let logoDataUrl = "";
+    try {
+      const response = await fetch("/logo.svg");
+      const svgText = await response.text();
+      logoDataUrl = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgText)))}`;
+    } catch (e) {
+      console.warn("Could not load logo:", e);
+    }
+
+    // Language-specific content
+    const content = isSpanish ? {
+      title: "Carta de Compromiso",
+      taxYear: "Año Tributario",
+      dateSigned: "Fecha de Firma",
+      greeting: `Estimado/a ${clientName}:`,
+      intro: `Gracias por elegir a ${firmName} ("la Firma", "nosotros" o "nuestro") para asistirle con la preparación y/o revisión de sus declaraciones de impuestos federales y estatales correspondientes al año tributario ${currentYear}. Esta carta confirma los términos de nuestra colaboración y describe la naturaleza y el alcance de los servicios que le proporcionaremos.`,
+      scopeTitle: "Alcance de los Servicios:",
+      scopeP1: "Revisaremos, prepararemos y/o modificaremos sus declaraciones de impuestos federales y estatales actuales, basándonos exclusivamente en la información que usted nos proporcione. Dependeremos de usted para suministrar información completa y precisa necesaria para realizar una evaluación adecuada y brindar recomendaciones. Podremos solicitar aclaraciones sobre ciertos puntos; sin embargo, no auditaremos ni verificaremos de otra manera la información que usted nos entregue.",
+      scopeP2: "La revisión o modificación de declaraciones de años anteriores queda fuera del alcance de este compromiso, salvo que se acuerde expresamente por escrito, y podrá estar sujeta a cargos adicionales.",
+      limitationsTitle: "Limitaciones del Compromiso:",
+      limitationsP1: "Realizaremos únicamente los servicios necesarios para revisar, modificar o preparar sus declaraciones de impuestos. Nuestro trabajo no incluirá procedimientos destinados a detectar fraude, malversación de fondos u otras irregularidades. En consecuencia, no debe confiarse en este compromiso para revelar errores, fraudes u otros actos ilegales, aunque pueda ser necesario que usted aclare cierta información proporcionada. No obstante, le informaremos oportunamente de cualquier error material, fraude u otra irregularidad que lleguemos a identificar.",
+      taxLawTitle: "Ley Tributaria, Estimaciones y Juicio Profesional:",
+      taxLawP1: "Las leyes tributarias son complejas y están sujetas a cambios. La ley impone penalidades e intereses cuando los contribuyentes subestiman su obligación tributaria o no realizan los pagos correspondientes. Usted sigue siendo el único responsable de sus obligaciones fiscales. Por favor, contáctenos si tiene inquietudes relacionadas con pagos estimados de impuestos o posibles penalidades.",
+      taxLawP2: "Si nos encontramos con áreas de la ley tributaria que sean poco claras o que permitan interpretaciones razonables diferentes, le explicaremos las opciones disponibles, así como los riesgos y consecuencias asociados. Procederemos conforme a la alternativa que usted autorice.",
+      feesTitle: "Honorarios y Facturación:",
+      feesP1: "Nuestros honorarios se basarán en el tiempo requerido para prestar los servicios, aplicando nuestras tarifas estándar por hora, más cualquier gasto incurrido. Las facturas deberán pagarse al momento de su presentación. En la medida permitida por la ley estatal, se podrá aplicar un cargo por intereses a todas las cuentas no pagadas dentro de un plazo de treinta (30) días.",
+      recordsTitle: "Conservación de Registros:",
+      recordsP1: "Le devolveremos sus documentos originales al finalizar este compromiso. Usted debe conservar de manera segura dichos documentos, junto con toda la documentación de respaldo, cheques cancelados, entre otros, ya que podrían ser necesarios en el futuro para demostrar la exactitud y completitud de una declaración. Conservaremos copias de sus documentos y de nuestros papeles de trabajo durante siete (7) años, después de lo cual podrán ser destruidos.",
+      thirdPartyTitle: "Uso de Proveedores Externos y Personal en el Extranjero:",
+      thirdPartyP1: `Para prestar nuestros servicios de manera eficiente, ${firmName} podrá utilizar profesionales externos capacitados y personal de apoyo, incluidos colaboradores ubicados fuera de los Estados Unidos, para asistir en la preparación de impuestos y funciones administrativas.`,
+      conclusionTitle: "Conclusión del Compromiso y Responsabilidad de Presentación:",
+      conclusionP1: "Al firmar esta carta de compromiso, usted autoriza y consiente la divulgación de su información tributaria a dichos proveedores, exclusivamente para fines relacionados con la preparación y el soporte de sus declaraciones de impuestos. Mantenemos acuerdos de confidencialidad y medidas razonables de seguridad de datos para proteger su información conforme a las leyes y normas profesionales aplicables.",
+      conclusionP2: "Nuestro compromiso para preparar sus declaraciones de impuestos concluirá con la entrega de nuestro análisis, junto con cualquier aclaración o corrección recomendada. Si usted no ha seleccionado presentar electrónicamente sus declaraciones a través de nuestra oficina, será su exclusiva responsabilidad presentar las declaraciones ante las autoridades fiscales correspondientes. Revise cuidadosamente todos los documentos de la declaración antes de firmarlos.",
+      acknowledgmentTitle: "Aceptación:",
+      acknowledgmentP1: "Para confirmar que esta carta refleja correctamente su entendimiento y aceptación de los términos de este compromiso, por favor firme y devuelva una copia de la misma.",
+      acknowledgmentP2: `Gracias por confiar a ${firmName} sus asuntos fiscales.`,
+      signatureSection: "Firma Electrónica del Cliente",
+      signedBy: "Firmado Por",
+      signatureType: "Tipo de Firma",
+      signatureTypeDrawn: "Firma Electrónica Dibujada a Mano",
+      signatureTypeTyped: "Firma Electrónica Escrita",
+      dateTime: "Fecha y Hora",
+      verificationTitle: "Verificación de Firma Electrónica",
+      documentId: "ID del Documento",
+      timestamp: "Marca de Tiempo (UTC)",
+      signer: "Firmante",
+      signatureMethod: "Método de Firma",
+      signatureMethodDrawn: "Firma dibujada mediante entrada táctil/ratón",
+      signatureMethodTyped: "Firma escrita con consentimiento",
+      device: "Dispositivo",
+      verificationNote: "Este documento fue firmado electrónicamente y el firmante aceptó que su firma electrónica tiene la misma validez legal que una firma manuscrita según las leyes aplicables de firma electrónica.",
+      footerTitle: `${firmName} - Servicios de Impuestos y Contabilidad`,
+      footerNote: "Este es un documento electrónico legalmente vinculante. Conserve esta copia para sus registros."
+    } : {
+      title: "Engagement Letter",
+      taxYear: "Tax Year",
+      dateSigned: "Date Signed",
+      greeting: `Dear ${clientName}:`,
+      intro: `Thank you for choosing ${firmName} ("Firm," "we," "us," or "our") to assist you with your ${currentYear} federal and state income tax filings. This letter confirms the terms of our engagement and outlines the nature and scope of the services we will provide.`,
+      scopeTitle: "Scope of Services:",
+      scopeP1: "We will review your current federal and state income tax returns. We will depend on you to provide the information we need to complete an accurate assessment and provide recommendations. We may ask you to clarify some items but will not audit or otherwise verify the data you submit. Review or revision of prior year(s) returns is also available at an additional charge.",
+      scopeP2: "Review or revision of prior-year tax returns is outside the scope of this engagement unless separately agreed to in writing and may be subject to additional fees.",
+      limitationsTitle: "Limitations of Engagement:",
+      limitationsP1: "We will perform services only as needed to review, revise or prepare your tax returns. Our work will not include procedures to find misappropriated funds or other irregularities. Accordingly, our engagement should not be relied upon to disclose errors, fraud, or other illegal acts, though it may be necessary for you to clarify some of the information you submit. We will, of course, inform you of any material errors, fraud, or other illegal acts we discover.",
+      taxLawTitle: "Tax Law, Estimates, and Professional Judgment:",
+      taxLawP1: "Tax laws are complex and subject to change. The law imposes penalties and interest when taxpayers underestimate their tax liability or fail to make required payments. You remain solely responsible for your tax obligations. Please contact us if you have concerns regarding estimated tax payments or potential penalties.",
+      taxLawP2: "If we encounter areas of unclear tax law or differing reasonable interpretations, we will explain the available options, including the related risks and consequences. We will proceed based on the course of action you authorize.",
+      feesTitle: "Fees and Billing:",
+      feesP1: "Our fee will be based on the time required at the standard hourly billing rate plus any out-of-pocket expenses. Invoices are due and payable upon presentation. To the extent permitted by state law, an interest charge may be added to all accounts not paid within thirty (30) days.",
+      recordsTitle: "Record Retention:",
+      recordsP1: "We will return your original records to you at the end of this engagement. You should securely store these records, along with all supporting documents, canceled checks, etc., as these items may later be needed to prove accuracy and completeness of a return. We will retain copies of your records and our work papers for your engagement for seven years, after which these documents will be destroyed.",
+      thirdPartyTitle: "Use of Third-Party and Overseas Service Providers:",
+      thirdPartyP1: `To efficiently deliver our services, ${firmName} may utilize trained third-party professionals and support staff, including personnel located outside the United States, to assist with tax preparation and administrative functions.`,
+      conclusionTitle: "Conclusion of Engagement and Filing Responsibility:",
+      conclusionP1: "By signing this engagement letter, you authorize and consent to the disclosure of your tax return information to such service providers, solely for purposes of preparing and supporting your tax returns. We maintain confidentiality agreements and reasonable data-security measures to protect your information in accordance with applicable laws and professional standards.",
+      conclusionP2: "Our engagement to prepare your tax returns will conclude with the delivery of our analysis of your return along with any recommended clarifications or corrections. If you have not selected to e-file your returns with our office, you will be solely responsible to file the returns with the appropriate taxing authorities. Review all tax-return documents carefully before signing them.",
+      acknowledgmentTitle: "Acknowledgment:",
+      acknowledgmentP1: "Please sign and return a copy of this letter to confirm that it accurately reflects your understanding of and agreement with the terms of this engagement.",
+      acknowledgmentP2: `Thank you for entrusting ${firmName} with your tax matters.`,
+      signatureSection: "Client Electronic Signature",
+      signedBy: "Signed By",
+      signatureType: "Signature Type",
+      signatureTypeDrawn: "Hand-drawn Electronic Signature",
+      signatureTypeTyped: "Typed Electronic Signature",
+      dateTime: "Date & Time",
+      verificationTitle: "Electronic Signature Verification",
+      documentId: "Document ID",
+      timestamp: "Timestamp (UTC)",
+      signer: "Signer",
+      signatureMethod: "Signature Method",
+      signatureMethodDrawn: "Drawn signature via touch/mouse input",
+      signatureMethodTyped: "Typed signature with consent",
+      device: "Device",
+      verificationNote: "This document was electronically signed and the signer agreed that their electronic signature has the same legal validity as a handwritten signature under applicable e-signature laws.",
+      footerTitle: `${firmName} - Tax & Accounting Services`,
+      footerNote: "This is a legally binding electronic document. Keep this copy for your records."
+    };
+
+    // IMPORTANT: Use only standard CSS colors (hex, rgb, rgba) - NOT oklch, lab, or other modern color functions
+    // html2pdf.js uses html2canvas which doesn't support modern CSS color functions
     return `
 <!DOCTYPE html>
-<html>
+<html lang="${isSpanish ? 'es' : 'en'}">
 <head>
   <meta charset="UTF-8">
-  <title>Engagement Letter - ${currentYear}</title>
+  <title>${content.title} - ${currentYear}</title>
   <style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; max-width: 800px; margin: 40px auto; padding: 20px; color: #333; }
-    h1 { text-align: center; color: #1a1a1a; border-bottom: 2px solid #e5e5e5; padding-bottom: 10px; }
-    h2 { color: #2c2c2c; margin-top: 20px; font-size: 14px; }
-    p { margin: 10px 0; text-align: justify; font-size: 12px; }
-    .header-info { text-align: center; margin-bottom: 30px; }
-    .signature-section { margin-top: 40px; padding: 20px; border: 2px solid #1a1a1a; border-radius: 8px; background: #fafafa; }
-    .signature-image { max-width: 300px; height: auto; border-bottom: 2px solid #333; padding-bottom: 10px; }
-    .signature-details { margin-top: 20px; }
-    .signature-details p { margin: 5px 0; font-size: 11px; color: #666; }
-    .verification-box { margin-top: 30px; padding: 15px; background: #f0f9ff; border: 1px solid #0284c7; border-radius: 8px; }
-    .verification-box h3 { color: #0369a1; margin: 0 0 10px 0; font-size: 12px; }
-    .verification-box p { font-size: 10px; color: #475569; margin: 3px 0; }
-    .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e5e5; text-align: center; font-size: 10px; color: #666; }
+    /* Reset and isolation - prevent inheritance of modern CSS color functions */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    html, body {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 12px;
+      line-height: 1.6;
+      color: #333333;
+      background-color: #ffffff;
+      -webkit-font-smoothing: antialiased;
+    }
+    body {
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+    }
+    .logo-header {
+      text-align: center;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 2px solid #8B2323;
+    }
+    .logo-header img {
+      max-width: 300px;
+      height: auto;
+    }
+    .logo-header h2 {
+      color: #8B2323;
+      margin: 0;
+      font-size: 24px;
+    }
+    h1 {
+      text-align: center;
+      color: #8B2323;
+      margin-top: 20px;
+      margin-bottom: 10px;
+      font-size: 22px;
+      font-weight: bold;
+    }
+    h2 {
+      color: #8B2323;
+      margin-top: 20px;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: bold;
+    }
+    h3 {
+      color: #8B2323;
+      font-size: 14px;
+      font-weight: bold;
+    }
+    p {
+      margin: 10px 0;
+      text-align: justify;
+      font-size: 12px;
+      color: #333333;
+    }
+    strong {
+      font-weight: bold;
+      color: #333333;
+    }
+    .header-info {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .header-info p {
+      text-align: center;
+    }
+    .signature-section {
+      margin-top: 40px;
+      padding: 20px;
+      border: 2px solid #8B2323;
+      border-radius: 8px;
+      background-color: #fafafa;
+    }
+    .signature-section h3 {
+      margin: 0 0 15px 0;
+      color: #8B2323;
+    }
+    .signature-image {
+      max-width: 300px;
+      height: auto;
+      border-bottom: 2px solid #333333;
+      padding-bottom: 10px;
+    }
+    .signature-details {
+      margin-top: 20px;
+    }
+    .signature-details p {
+      margin: 5px 0;
+      font-size: 11px;
+      color: #666666;
+      text-align: left;
+    }
+    .verification-box {
+      margin-top: 30px;
+      padding: 15px;
+      background-color: #f0f9ff;
+      border: 1px solid #0284c7;
+      border-radius: 8px;
+    }
+    .verification-box h3 {
+      color: #0369a1;
+      margin: 0 0 10px 0;
+      font-size: 12px;
+    }
+    .verification-box p {
+      font-size: 10px;
+      color: #475569;
+      margin: 3px 0;
+      text-align: left;
+    }
+    .verification-note {
+      margin-top: 10px;
+      font-style: italic;
+    }
+    .footer {
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid #8B2323;
+      text-align: center;
+      font-size: 10px;
+      color: #666666;
+    }
+    .footer img {
+      max-width: 200px;
+      height: auto;
+      margin-bottom: 10px;
+    }
+    .footer p {
+      text-align: center;
+      color: #666666;
+    }
+    .footer-title {
+      margin-top: 15px;
+    }
   </style>
 </head>
 <body>
-  <h1>Engagement Letter</h1>
+  <div class="logo-header">
+    ${logoDataUrl ? `<img src="${logoDataUrl}" alt="IC Multi Services Logo" />` : `<h2>IC Multi Services, LLC</h2>`}
+  </div>
+
+  <h1>${content.title}</h1>
   <div class="header-info">
-    <p><strong>Tax Year:</strong> ${currentYear}</p>
-    <p><strong>Date Signed:</strong> ${signedDate}</p>
+    <p><strong>${content.taxYear}:</strong> ${currentYear}</p>
+    <p><strong>${content.dateSigned}:</strong> ${signedDate}</p>
   </div>
   
-  <p>Dear ${clientName}:</p>
+  <p>${content.greeting}</p>
   
-  <p>Thank you for choosing ${firmName} ("Firm," "we," "us," or "our") to assist you with your ${currentYear} federal and state income tax filings. This letter confirms the terms of our engagement and outlines the nature and scope of the services we will provide.</p>
+  <p>${content.intro}</p>
   
-  <h2>Scope of Services:</h2>
-  <p>We will review your current federal and state income tax returns. We will depend on you to provide the information we need to complete an accurate assessment and provide recommendations. We may ask you to clarify some items but will not audit or otherwise verify the data you submit. Review or revision of prior year(s) returns is also available at an additional charge.</p>
-  <p>Review or revision of prior-year tax returns is outside the scope of this engagement unless separately agreed to in writing and may be subject to additional fees.</p>
+  <h2>${content.scopeTitle}</h2>
+  <p>${content.scopeP1}</p>
+  <p>${content.scopeP2}</p>
   
-  <h2>Limitations of Engagement:</h2>
-  <p>We will perform services only as needed to review, revise or prepare your tax returns. Our work will not include procedures to find misappropriated funds or other irregularities. Accordingly, our engagement should not be relied upon to disclose errors, fraud, or other illegal acts, though it may be necessary for you to clarify some of the information you submit. We will, of course, inform you of any material errors, fraud, or other illegal acts we discover.</p>
+  <h2>${content.limitationsTitle}</h2>
+  <p>${content.limitationsP1}</p>
   
-  <h2>Tax Law, Estimates, and Professional Judgment:</h2>
-  <p>Tax laws are complex and subject to change. The law imposes penalties and interest when taxpayers underestimate their tax liability or fail to make required payments. You remain solely responsible for your tax obligations. Please contact us if you have concerns regarding estimated tax payments or potential penalties.</p>
-  <p>If we encounter areas of unclear tax law or differing reasonable interpretations, we will explain the available options, including the related risks and consequences. We will proceed based on the course of action you authorize.</p>
+  <h2>${content.taxLawTitle}</h2>
+  <p>${content.taxLawP1}</p>
+  <p>${content.taxLawP2}</p>
   
-  <h2>Fees and Billing:</h2>
-  <p>Our fee will be based on the time required at the standard hourly billing rate plus any out-of-pocket expenses. Invoices are due and payable upon presentation. To the extent permitted by state law, an interest charge may be added to all accounts not paid within thirty (30) days.</p>
-  <p>We will return your original records to you at the end of this engagement. You should securely store these records, along with all supporting documents, canceled checks, etc., as these items may later be needed to prove accuracy and completeness of a return. We will retain copies of your records and our work papers for your engagement for seven years, after which these documents will be destroyed.</p>
+  <h2>${content.feesTitle}</h2>
+  <p>${content.feesP1}</p>
   
-  <h2>Use of Third-Party and Overseas Service Providers:</h2>
-  <p>To efficiently deliver our services, ${firmName} may utilize trained third-party professionals and support staff, including personnel located outside the United States, to assist with tax preparation and administrative functions.</p>
+  <h2>${content.recordsTitle}</h2>
+  <p>${content.recordsP1}</p>
   
-  <h2>Conclusion of Engagement and Filing Responsibility:</h2>
-  <p>By signing this engagement letter, you authorize and consent to the disclosure of your tax return information to such service providers, solely for purposes of preparing and supporting your tax returns. We maintain confidentiality agreements and reasonable data-security measures to protect your information in accordance with applicable laws and professional standards.</p>
-  <p>Our engagement to prepare your tax returns will conclude with the delivery of our analysis of your return along with any recommended clarifications or corrections. If you have not selected to e-file your returns with our office, you will be solely responsible to file the returns with the appropriate taxing authorities. Review all tax-return documents carefully before signing them.</p>
+  <h2>${content.thirdPartyTitle}</h2>
+  <p>${content.thirdPartyP1}</p>
   
-  <h2>Acknowledgment:</h2>
-  <p>Please sign and return a copy of this letter to confirm that it accurately reflects your understanding of and agreement with the terms of this engagement.</p>
-  <p>Thank you for entrusting ${firmName} with your tax matters.</p>
+  <h2>${content.conclusionTitle}</h2>
+  <p>${content.conclusionP1}</p>
+  <p>${content.conclusionP2}</p>
+  
+  <h2>${content.acknowledgmentTitle}</h2>
+  <p>${content.acknowledgmentP1}</p>
+  <p>${content.acknowledgmentP2}</p>
   
   <div class="signature-section">
-    <h3 style="margin: 0 0 15px 0; color: #1a1a1a;">Client Electronic Signature</h3>
+    <h3>${content.signatureSection}</h3>
     <img src="${sigData.signatureImage}" alt="Client Signature" class="signature-image" />
     <div class="signature-details">
-      <p><strong>Signed By:</strong> ${sigData.signerName}</p>
-      <p><strong>Signature Type:</strong> ${sigData.signatureType === "draw" ? "Hand-drawn Electronic Signature" : "Typed Electronic Signature"}</p>
-      <p><strong>Date & Time:</strong> ${signedDate} at ${signedTime}</p>
+      <p><strong>${content.signedBy}:</strong> ${sigData.signerName}</p>
+      <p><strong>${content.signatureType}:</strong> ${sigData.signatureType === "draw" ? content.signatureTypeDrawn : content.signatureTypeTyped}</p>
+      <p><strong>${content.dateTime}:</strong> ${signedDate} ${isSpanish ? 'a las' : 'at'} ${signedTime}</p>
     </div>
   </div>
 
   <div class="verification-box">
-    <h3>🔒 Electronic Signature Verification</h3>
-    <p><strong>Document ID:</strong> ENG-${currentYear}-${user?.id.slice(0, 8).toUpperCase()}</p>
-    <p><strong>Timestamp (UTC):</strong> ${sigData.signedAt}</p>
-    <p><strong>Signer:</strong> ${sigData.signerName}</p>
-    <p><strong>Signature Method:</strong> ${sigData.signatureType === "draw" ? "Drawn signature via touch/mouse input" : "Typed signature with consent"}</p>
-    <p><strong>Device:</strong> ${sigData.userAgent.slice(0, 100)}...</p>
-    <p style="margin-top: 10px; font-style: italic;">This document was electronically signed and the signer agreed that their electronic signature has the same legal validity as a handwritten signature under applicable e-signature laws.</p>
+    <h3>${content.verificationTitle}</h3>
+    <p><strong>${content.documentId}:</strong> ENG-${currentYear}-${user?.id.slice(0, 8).toUpperCase()}</p>
+    <p><strong>${content.timestamp}:</strong> ${sigData.signedAt}</p>
+    <p><strong>${content.signer}:</strong> ${sigData.signerName}</p>
+    <p><strong>${content.signatureMethod}:</strong> ${sigData.signatureType === "draw" ? content.signatureMethodDrawn : content.signatureMethodTyped}</p>
+    <p><strong>${content.device}:</strong> ${sigData.userAgent.slice(0, 100)}...</p>
+    <p class="verification-note">${content.verificationNote}</p>
   </div>
 
   <div class="footer">
-    <p>${firmName} • Tax & Accounting Services</p>
-    <p>This is a legally binding electronic document. Keep this copy for your records.</p>
+    ${logoDataUrl ? `<img src="${logoDataUrl}" alt="IC Multi Services Logo" />` : ``}
+    <p class="footer-title">${content.footerTitle}</p>
+    <p>${content.footerNote}</p>
   </div>
 </body>
 </html>
@@ -399,42 +605,96 @@ export default function TaxesTab({
     try {
       const clientName = `${profile.first_name} ${profile.last_name}`;
       
-      // Generate HTML content
-      const engagementContent = generateEngagementLetterHTML(sigData);
+      // Generate HTML content (async to fetch logo)
+      const engagementContent = await generateEngagementLetterHTML(sigData);
 
-      // Create a temporary container for PDF generation
-      const container = document.createElement("div");
-      container.innerHTML = engagementContent;
-      container.style.position = "absolute";
-      container.style.left = "-9999px";
-      container.style.top = "0";
-      document.body.appendChild(container);
+      // Import jsPDF and html2canvas directly for better control
+      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+        import("jspdf"),
+        import("html2canvas")
+      ]);
 
-      // Wait for html2pdf to be loaded
-      if (!html2pdf) {
-        const module = await import("html2pdf.js");
-        html2pdf = module.default;
+      // Create a completely isolated iframe using srcdoc for full style isolation
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "absolute";
+      iframe.style.left = "-9999px";
+      iframe.style.top = "0";
+      iframe.style.width = "800px";
+      iframe.style.height = "1200px";
+      iframe.style.border = "none";
+      document.body.appendChild(iframe);
+
+      // Use srcdoc for complete isolation
+      await new Promise<void>((resolve, reject) => {
+        iframe.onload = () => resolve();
+        iframe.onerror = () => reject(new Error("Failed to load iframe"));
+        iframe.srcdoc = engagementContent;
+      });
+
+      // Allow additional time for fonts and images to load
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Get the body from the iframe
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      const iframeWindow = iframe.contentWindow;
+      const bodyContent = iframeDoc?.body;
+
+      if (!bodyContent || !iframeWindow) {
+        throw new Error("Failed to create document for PDF generation");
       }
 
-      // Generate PDF
-      const pdfOptions = {
-        margin: [10, 10, 10, 10],
-        filename: `${currentYear}_Engagement_Letter_${clientName.replace(/\s+/g, "_")}_signed.pdf`,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, allowTaint: true },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-      };
+      // Use html2canvas with the iframe's window context to avoid inheriting parent styles
+      const canvas = await html2canvas(bodyContent, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: "#ffffff",
+        width: 800,
+        windowWidth: 800,
+        logging: false,
+        // Pass the iframe's window to use its isolated style context
+        // @ts-ignore - window option exists but may not be in types
+        window: iframeWindow,
+      });
 
-      // Get the body element from the container
-      const bodyContent = container.querySelector("body") || container;
+      // Create PDF from canvas
+      const imgData = canvas.toDataURL("image/jpeg", 0.98);
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
 
-      const pdfBlob = await html2pdf()
-        .set(pdfOptions)
-        .from(bodyContent)
-        .outputPdf("blob");
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      const contentWidth = pageWidth - (margin * 2);
+      const imgWidth = contentWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-      // Clean up temporary container
-      document.body.removeChild(container);
+      // Add image to PDF, handling multiple pages if needed
+      let heightLeft = imgHeight;
+      let position = margin;
+      let page = 1;
+
+      // First page
+      pdf.addImage(imgData, "JPEG", margin, position, imgWidth, imgHeight);
+      heightLeft -= (pageHeight - margin * 2);
+
+      // Additional pages if content is longer than one page
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight + margin;
+        pdf.addPage();
+        pdf.addImage(imgData, "JPEG", margin, position, imgWidth, imgHeight);
+        heightLeft -= (pageHeight - margin * 2);
+        page++;
+      }
+
+      // Get PDF as blob
+      const pdfBlob = pdf.output("blob");
+
+      // Clean up iframe
+      document.body.removeChild(iframe);
 
       const fileName = `${currentYear}_Engagement_Letter_${clientName.replace(/\s+/g, "_")}_signed.pdf`;
       const filePath = `${user.id}/${fileName}`;
@@ -449,23 +709,49 @@ export default function TaxesTab({
 
       if (uploadError) throw uploadError;
 
-      // Save document metadata to user_documents table
-      const { error: dbError } = await supabase
+      // Check if engagement letter already exists for this user and year
+      const { data: existingDoc, error: checkError } = await supabase
         .from("user_documents")
-        .insert({
-          user_id: user.id,
-          title: `${currentYear} Engagement Letter`,
-          doctype: "Engagement Letter",
-          year: currentYear,
-          file_path: filePath,
-          file_type: "application/pdf",
-          size: pdfBlob.size
-        });
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("doctype", "Engagement Letter")
+        .eq("year", currentYear)
+        .maybeSingle();
 
-      if (dbError) throw dbError;
+      if (checkError) throw checkError;
 
-      // Mark as signed
-      setEngagementSigned(true);
+      if (existingDoc) {
+        // Update existing engagement letter
+        const { error: updateError } = await supabase
+          .from("user_documents")
+          .update({
+            title: `${currentYear} Engagement Letter`,
+            file_path: filePath,
+            file_type: "application/pdf",
+            size: pdfBlob.size,
+          })
+          .eq("id", existingDoc.id);
+
+        if (updateError) throw updateError;
+      } else {
+        // Insert new engagement letter record
+        const { error: dbError } = await supabase
+          .from("user_documents")
+          .insert({
+            user_id: user.id,
+            title: `${currentYear} Engagement Letter`,
+            doctype: "Engagement Letter",
+            year: currentYear,
+            file_path: filePath,
+            file_type: "application/pdf",
+            size: pdfBlob.size
+          });
+
+        if (dbError) throw dbError;
+      }
+
+      // Notify parent to refresh engagement status from database
+      onEngagementSigned();
       alert("Engagement letter signed and saved as PDF successfully!");
     } catch (error: any) {
       console.error("Error signing engagement letter:", error);
@@ -514,9 +800,9 @@ export default function TaxesTab({
   };
 
   const sections = [
-    { id: "engagement" as TaxSection, label: "Engagement Letter", icon: FileSignature, completed: engagementSigned },
-    { id: "questionnaire" as TaxSection, label: "Questionnaire", icon: ClipboardList, completed: answers.filter(a => a.answer !== null).length === questionnaireQuestions.length },
-    { id: "checklist" as TaxSection, label: "Document Checklist", icon: FolderCheck, completed: checklist.filter(c => c.required).every(c => c.status !== "pending") },
+    { id: "engagement" as TaxSection, label: profile?.preferred_language === "es" ? "Carta de Compromiso" : "Engagement Letter", icon: FileSignature, completed: engagementSigned },
+    { id: "questionnaire" as TaxSection, label: profile?.preferred_language === "es" ? "Cuestionario" : "Questionnaire", icon: ClipboardList, completed: answers.filter(a => a.answer !== null).length === questionnaireQuestions.length },
+    { id: "checklist" as TaxSection, label: profile?.preferred_language === "es" ? "Lista de Documentos" : "Document Checklist", icon: FolderCheck, completed: checklist.filter(c => c.required).every(c => c.status !== "pending") },
   ];
 
   // Group questions by category
@@ -604,7 +890,7 @@ export default function TaxesTab({
             <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-zinc-900">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
-                  {currentYear}_Engagement_Letter.pdf
+                  {currentYear}_{profile?.preferred_language === "es" ? "Carta_de_Compromiso" : "Engagement_Letter"}.pdf
                 </h2>
                 <div className="flex gap-2">
                   <button className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300">
@@ -616,88 +902,181 @@ export default function TaxesTab({
               {/* Simulated Document Preview */}
               <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-8 dark:border-zinc-700 dark:bg-zinc-800/50 mb-6">
                 <div className="max-w-2xl mx-auto space-y-4 text-sm text-zinc-700 dark:text-zinc-300">
-                  <p>Dear {profile?.first_name} {profile?.last_name}:</p>
+                  {profile?.preferred_language === "es" ? (
+                    <>
+                      <p>Estimado/a {profile?.first_name} {profile?.last_name}:</p>
 
-                  <p>
-                    Thank you for choosing <strong>IC Multi Services, LLC</strong> (&quot;Firm,&quot; &quot;we,&quot; &quot;us,&quot; or &quot;our&quot;) to assist you with your {currentYear} federal and state income tax filings. This letter confirms the terms of our engagement and outlines the nature and scope of the services we will provide.
-                  </p>
-
-                  <div>
-                    <h4 className="font-semibold text-zinc-900 dark:text-white">Scope of Services:</h4>
-                    <p className="mt-1">
-                      We will review your current federal and state income tax returns. We will depend on you to provide the information we need to complete an accurate assessment and provide recommendations. We may ask you to clarify some items but will not audit or otherwise verify the data you submit. Review or revision of prior year(s) returns is also available at an additional charge.
-                    </p>
-                    <p className="mt-1">
-                      Review or revision of prior-year tax returns is outside the scope of this engagement unless separately agreed to in writing and may be subject to additional fees.
-                    </p>
-                  </div>
-
-                  <div>
-                    <h4 className="font-semibold text-zinc-900 dark:text-white">Limitations of Engagement:</h4>
-                    <p className="mt-1">
-                      We will perform services only as needed to review, revise or prepare your tax returns. Our work will not include procedures to find misappropriated funds or other irregularities. Accordingly, our engagement should not be relied upon to disclose errors, fraud, or other illegal acts, though it may be necessary for you to clarify some of the information you submit. We will, of course, inform you of any material errors, fraud, or other illegal acts we discover.
-                    </p>
-                  </div>
-
-                  <div>
-                    <h4 className="font-semibold text-zinc-900 dark:text-white">Tax Law, Estimates, and Professional Judgment:</h4>
-                    <p className="mt-1">
-                      Tax laws are complex and subject to change. The law imposes penalties and interest when taxpayers underestimate their tax liability or fail to make required payments. You remain solely responsible for your tax obligations. Please contact us if you have concerns regarding estimated tax payments or potential penalties.
-                    </p>
-                    <p className="mt-1">
-                      If we encounter areas of unclear tax law or differing reasonable interpretations, we will explain the available options, including the related risks and consequences. We will proceed based on the course of action you authorize.
-                    </p>
-                  </div>
-
-                  <div>
-                    <h4 className="font-semibold text-zinc-900 dark:text-white">Fees and Billing:</h4>
-                    <p className="mt-1">
-                      Our fee will be based on the time required at the standard hourly billing rate plus any out-of-pocket expenses. Invoices are due and payable upon presentation. To the extent permitted by state law, an interest charge may be added to all accounts not paid within thirty (30) days.
-                    </p>
-                    <p className="mt-1">
-                      We will return your original records to you at the end of this engagement. You should securely store these records, along with all supporting documents, canceled checks, etc., as these items may later be needed to prove accuracy and completeness of a return. We will retain copies of your records and our work papers for your engagement for seven years, after which these documents will be destroyed.
-                    </p>
-                  </div>
-
-                  <div>
-                    <h4 className="font-semibold text-zinc-900 dark:text-white">Use of Third-Party and Overseas Service Providers:</h4>
-                    <p className="mt-1">
-                      To efficiently deliver our services, IC Multi Services, LLC may utilize trained third-party professionals and support staff, including personnel located outside the United States, to assist with tax preparation and administrative functions.
-                    </p>
-                  </div>
-
-                  <div>
-                    <h4 className="font-semibold text-zinc-900 dark:text-white">Conclusion of Engagement and Filing Responsibility:</h4>
-                    <p className="mt-1">
-                      By signing this engagement letter, you authorize and consent to the disclosure of your tax return information to such service providers, solely for purposes of preparing and supporting your tax returns. We maintain confidentiality agreements and reasonable data-security measures to protect your information in accordance with applicable laws and professional standards.
-                    </p>
-                    <p className="mt-1">
-                      Our engagement to prepare your tax returns will conclude with the delivery of our analysis of your return along with any recommended clarifications or corrections. If you have not selected to e-file your returns with our office, you will be solely responsible to file the returns with the appropriate taxing authorities. Review all tax-return documents carefully before signing them.
-                    </p>
-                  </div>
-
-                  <div>
-                    <h4 className="font-semibold text-zinc-900 dark:text-white">Acknowledgment:</h4>
-                    <p className="mt-1">
-                      Please sign and return a copy of this letter to confirm that it accurately reflects your understanding of and agreement with the terms of this engagement.
-                    </p>
-                    <p className="mt-1">
-                      Thank you for entrusting IC Multi Services, LLC with your tax matters.
-                    </p>
-                  </div>
-
-                  <div className="pt-4 border-t border-zinc-200 dark:border-zinc-700 flex justify-between items-end">
-                    <div>
-                      <p className="text-xs text-zinc-500 uppercase">Client Signature</p>
-                      <p className="italic text-zinc-400">
-                        {engagementSigned ? `${profile?.first_name} ${profile?.last_name}` : "Sign electronically below..."}
+                      <p>
+                        Gracias por elegir a <strong>IC Multi Services, LLC</strong> (&quot;la Firma&quot;, &quot;nosotros&quot; o &quot;nuestro&quot;) para asistirle con la preparación y/o revisión de sus declaraciones de impuestos federales y estatales correspondientes al año tributario {currentYear}. Esta carta confirma los términos de nuestra colaboración y describe la naturaleza y el alcance de los servicios que le proporcionaremos.
                       </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs text-zinc-500 uppercase">Date</p>
-                      <p>{new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}</p>
-                    </div>
-                  </div>
+
+                      <div>
+                        <h4 className="font-semibold text-zinc-900 dark:text-white">Alcance de los Servicios:</h4>
+                        <p className="mt-1">
+                          Revisaremos, prepararemos y/o modificaremos sus declaraciones de impuestos federales y estatales actuales, basándonos exclusivamente en la información que usted nos proporcione. Dependeremos de usted para suministrar información completa y precisa necesaria para realizar una evaluación adecuada y brindar recomendaciones. Podremos solicitar aclaraciones sobre ciertos puntos; sin embargo, no auditaremos ni verificaremos de otra manera la información que usted nos entregue.
+                        </p>
+                        <p className="mt-1">
+                          La revisión o modificación de declaraciones de años anteriores queda fuera del alcance de este compromiso, salvo que se acuerde expresamente por escrito, y podrá estar sujeta a cargos adicionales.
+                        </p>
+                      </div>
+
+                      <div>
+                        <h4 className="font-semibold text-zinc-900 dark:text-white">Limitaciones del Compromiso:</h4>
+                        <p className="mt-1">
+                          Realizaremos únicamente los servicios necesarios para revisar, modificar o preparar sus declaraciones de impuestos. Nuestro trabajo no incluirá procedimientos destinados a detectar fraude, malversación de fondos u otras irregularidades. En consecuencia, no debe confiarse en este compromiso para revelar errores, fraudes u otros actos ilegales, aunque pueda ser necesario que usted aclare cierta información proporcionada. No obstante, le informaremos oportunamente de cualquier error material, fraude u otra irregularidad que lleguemos a identificar.
+                        </p>
+                      </div>
+
+                      <div>
+                        <h4 className="font-semibold text-zinc-900 dark:text-white">Ley Tributaria, Estimaciones y Juicio Profesional:</h4>
+                        <p className="mt-1">
+                          Las leyes tributarias son complejas y están sujetas a cambios. La ley impone penalidades e intereses cuando los contribuyentes subestiman su obligación tributaria o no realizan los pagos correspondientes. Usted sigue siendo el único responsable de sus obligaciones fiscales. Por favor, contáctenos si tiene inquietudes relacionadas con pagos estimados de impuestos o posibles penalidades.
+                        </p>
+                        <p className="mt-1">
+                          Si nos encontramos con áreas de la ley tributaria que sean poco claras o que permitan interpretaciones razonables diferentes, le explicaremos las opciones disponibles, así como los riesgos y consecuencias asociados. Procederemos conforme a la alternativa que usted autorice.
+                        </p>
+                      </div>
+
+                      <div>
+                        <h4 className="font-semibold text-zinc-900 dark:text-white">Honorarios y Facturación:</h4>
+                        <p className="mt-1">
+                          Nuestros honorarios se basarán en el tiempo requerido para prestar los servicios, aplicando nuestras tarifas estándar por hora, más cualquier gasto incurrido. Las facturas deberán pagarse al momento de su presentación. En la medida permitida por la ley estatal, se podrá aplicar un cargo por intereses a todas las cuentas no pagadas dentro de un plazo de treinta (30) días.
+                        </p>
+                      </div>
+
+                      <div>
+                        <h4 className="font-semibold text-zinc-900 dark:text-white">Conservación de Registros:</h4>
+                        <p className="mt-1">
+                          Le devolveremos sus documentos originales al finalizar este compromiso. Usted debe conservar de manera segura dichos documentos, junto con toda la documentación de respaldo, cheques cancelados, entre otros, ya que podrían ser necesarios en el futuro para demostrar la exactitud y completitud de una declaración. Conservaremos copias de sus documentos y de nuestros papeles de trabajo durante siete (7) años, después de lo cual podrán ser destruidos.
+                        </p>
+                      </div>
+
+                      <div>
+                        <h4 className="font-semibold text-zinc-900 dark:text-white">Uso de Proveedores Externos y Personal en el Extranjero:</h4>
+                        <p className="mt-1">
+                          Para prestar nuestros servicios de manera eficiente, IC Multi Services, LLC podrá utilizar profesionales externos capacitados y personal de apoyo, incluidos colaboradores ubicados fuera de los Estados Unidos, para asistir en la preparación de impuestos y funciones administrativas.
+                        </p>
+                      </div>
+
+                      <div>
+                        <h4 className="font-semibold text-zinc-900 dark:text-white">Conclusión del Compromiso y Responsabilidad de Presentación:</h4>
+                        <p className="mt-1">
+                          Al firmar esta carta de compromiso, usted autoriza y consiente la divulgación de su información tributaria a dichos proveedores, exclusivamente para fines relacionados con la preparación y el soporte de sus declaraciones de impuestos. Mantenemos acuerdos de confidencialidad y medidas razonables de seguridad de datos para proteger su información conforme a las leyes y normas profesionales aplicables.
+                        </p>
+                        <p className="mt-1">
+                          Nuestro compromiso para preparar sus declaraciones de impuestos concluirá con la entrega de nuestro análisis, junto con cualquier aclaración o corrección recomendada. Si usted no ha seleccionado presentar electrónicamente sus declaraciones a través de nuestra oficina, será su exclusiva responsabilidad presentar las declaraciones ante las autoridades fiscales correspondientes. Revise cuidadosamente todos los documentos de la declaración antes de firmarlos.
+                        </p>
+                      </div>
+
+                      <div>
+                        <h4 className="font-semibold text-zinc-900 dark:text-white">Aceptación:</h4>
+                        <p className="mt-1">
+                          Para confirmar que esta carta refleja correctamente su entendimiento y aceptación de los términos de este compromiso, por favor firme y devuelva una copia de la misma.
+                        </p>
+                        <p className="mt-1">
+                          Gracias por confiar a IC Multi Services, LLC sus asuntos fiscales.
+                        </p>
+                      </div>
+
+                      <div className="pt-4 border-t border-zinc-200 dark:border-zinc-700 flex justify-between items-end">
+                        <div>
+                          <p className="text-xs text-zinc-500 uppercase">Firma del Cliente</p>
+                          <p className="italic text-zinc-400">
+                            {engagementSigned ? `${profile?.first_name} ${profile?.last_name}` : "Firme electrónicamente a continuación..."}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-zinc-500 uppercase">Fecha</p>
+                          <p>{new Date().toLocaleDateString("es-ES", { year: "numeric", month: "short", day: "numeric" })}</p>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p>Dear {profile?.first_name} {profile?.last_name}:</p>
+
+                      <p>
+                        Thank you for choosing <strong>IC Multi Services, LLC</strong> (&quot;Firm,&quot; &quot;we,&quot; &quot;us,&quot; or &quot;our&quot;) to assist you with your {currentYear} federal and state income tax filings. This letter confirms the terms of our engagement and outlines the nature and scope of the services we will provide.
+                      </p>
+
+                      <div>
+                        <h4 className="font-semibold text-zinc-900 dark:text-white">Scope of Services:</h4>
+                        <p className="mt-1">
+                          We will review your current federal and state income tax returns. We will depend on you to provide the information we need to complete an accurate assessment and provide recommendations. We may ask you to clarify some items but will not audit or otherwise verify the data you submit. Review or revision of prior year(s) returns is also available at an additional charge.
+                        </p>
+                        <p className="mt-1">
+                          Review or revision of prior-year tax returns is outside the scope of this engagement unless separately agreed to in writing and may be subject to additional fees.
+                        </p>
+                      </div>
+
+                      <div>
+                        <h4 className="font-semibold text-zinc-900 dark:text-white">Limitations of Engagement:</h4>
+                        <p className="mt-1">
+                          We will perform services only as needed to review, revise or prepare your tax returns. Our work will not include procedures to find misappropriated funds or other irregularities. Accordingly, our engagement should not be relied upon to disclose errors, fraud, or other illegal acts, though it may be necessary for you to clarify some of the information you submit. We will, of course, inform you of any material errors, fraud, or other illegal acts we discover.
+                        </p>
+                      </div>
+
+                      <div>
+                        <h4 className="font-semibold text-zinc-900 dark:text-white">Tax Law, Estimates, and Professional Judgment:</h4>
+                        <p className="mt-1">
+                          Tax laws are complex and subject to change. The law imposes penalties and interest when taxpayers underestimate their tax liability or fail to make required payments. You remain solely responsible for your tax obligations. Please contact us if you have concerns regarding estimated tax payments or potential penalties.
+                        </p>
+                        <p className="mt-1">
+                          If we encounter areas of unclear tax law or differing reasonable interpretations, we will explain the available options, including the related risks and consequences. We will proceed based on the course of action you authorize.
+                        </p>
+                      </div>
+
+                      <div>
+                        <h4 className="font-semibold text-zinc-900 dark:text-white">Fees and Billing:</h4>
+                        <p className="mt-1">
+                          Our fee will be based on the time required at the standard hourly billing rate plus any out-of-pocket expenses. Invoices are due and payable upon presentation. To the extent permitted by state law, an interest charge may be added to all accounts not paid within thirty (30) days.
+                        </p>
+                        <p className="mt-1">
+                          We will return your original records to you at the end of this engagement. You should securely store these records, along with all supporting documents, canceled checks, etc., as these items may later be needed to prove accuracy and completeness of a return. We will retain copies of your records and our work papers for your engagement for seven years, after which these documents will be destroyed.
+                        </p>
+                      </div>
+
+                      <div>
+                        <h4 className="font-semibold text-zinc-900 dark:text-white">Use of Third-Party and Overseas Service Providers:</h4>
+                        <p className="mt-1">
+                          To efficiently deliver our services, IC Multi Services, LLC may utilize trained third-party professionals and support staff, including personnel located outside the United States, to assist with tax preparation and administrative functions.
+                        </p>
+                      </div>
+
+                      <div>
+                        <h4 className="font-semibold text-zinc-900 dark:text-white">Conclusion of Engagement and Filing Responsibility:</h4>
+                        <p className="mt-1">
+                          By signing this engagement letter, you authorize and consent to the disclosure of your tax return information to such service providers, solely for purposes of preparing and supporting your tax returns. We maintain confidentiality agreements and reasonable data-security measures to protect your information in accordance with applicable laws and professional standards.
+                        </p>
+                        <p className="mt-1">
+                          Our engagement to prepare your tax returns will conclude with the delivery of our analysis of your return along with any recommended clarifications or corrections. If you have not selected to e-file your returns with our office, you will be solely responsible to file the returns with the appropriate taxing authorities. Review all tax-return documents carefully before signing them.
+                        </p>
+                      </div>
+
+                      <div>
+                        <h4 className="font-semibold text-zinc-900 dark:text-white">Acknowledgment:</h4>
+                        <p className="mt-1">
+                          Please sign and return a copy of this letter to confirm that it accurately reflects your understanding of and agreement with the terms of this engagement.
+                        </p>
+                        <p className="mt-1">
+                          Thank you for entrusting IC Multi Services, LLC with your tax matters.
+                        </p>
+                      </div>
+
+                      <div className="pt-4 border-t border-zinc-200 dark:border-zinc-700 flex justify-between items-end">
+                        <div>
+                          <p className="text-xs text-zinc-500 uppercase">Client Signature</p>
+                          <p className="italic text-zinc-400">
+                            {engagementSigned ? `${profile?.first_name} ${profile?.last_name}` : "Sign electronically below..."}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-zinc-500 uppercase">Date</p>
+                          <p>{new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}</p>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -712,31 +1091,33 @@ export default function TaxesTab({
                     {signingEngagement ? (
                       <>
                         <Loader2 size={18} className="animate-spin" />
-                        Processing Signature...
+                        {profile?.preferred_language === "es" ? "Procesando Firma..." : "Processing Signature..."}
                       </>
                     ) : (
                       <>
                         <FileSignature size={18} />
-                        E-Sign Document
+                        {profile?.preferred_language === "es" ? "Firmar Electrónicamente" : "E-Sign Document"}
                       </>
                     )}
                   </button>
                   <button className="px-6 py-3 text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white">
-                    Save as Draft
+                    {profile?.preferred_language === "es" ? "Guardar Borrador" : "Save as Draft"}
                   </button>
                 </div>
               ) : (
                 <div className="flex items-center gap-3 rounded-lg bg-green-50 border border-green-200 p-4 dark:bg-green-900/20 dark:border-green-900">
                   <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
                   <span className="text-sm font-medium text-green-700 dark:text-green-300">
-                    Document signed successfully on {new Date().toLocaleDateString()}
+                    {profile?.preferred_language === "es" 
+                      ? `Documento firmado exitosamente el ${new Date().toLocaleDateString("es-ES")}`
+                      : `Document signed successfully on ${new Date().toLocaleDateString()}`}
                   </span>
                   <button 
                     onClick={handleDownloadEngagement}
                     className="ml-auto text-sm font-medium text-green-600 hover:text-green-700 dark:text-green-400 flex items-center gap-1"
                   >
                     <Download size={14} />
-                    Download Copy
+                    {profile?.preferred_language === "es" ? "Descargar Copia" : "Download Copy"}
                   </button>
                 </div>
               )}
