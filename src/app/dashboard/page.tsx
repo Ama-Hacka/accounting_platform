@@ -290,6 +290,7 @@ export default function DashboardPage() {
             user={user}
             profile={profile}
             onNavigateToTaxes={handleNavigateToTaxes}
+            documents={documents}
             taxReturns={taxReturns}
             questionnaireStatus={questionnaireStatus}
             questionnaireProgress={questionnaireProgress}

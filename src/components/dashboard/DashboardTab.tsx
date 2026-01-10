@@ -16,6 +16,7 @@ interface DashboardTabProps {
   user: any;
   profile: { first_name?: string; last_name?: string } | null;
   onNavigateToTaxes: () => void;
+  documents: any[];
   taxReturns: any[];
   questionnaireStatus: "not_started" | "in_progress" | "submitted";
   questionnaireProgress: number;
@@ -25,6 +26,7 @@ export default function DashboardTab({
   user,
   profile,
   onNavigateToTaxes,
+  documents,
   taxReturns,
   questionnaireStatus,
   questionnaireProgress,
@@ -35,6 +37,28 @@ export default function DashboardTab({
 
   // Get last year's tax return if available
   const lastYearReturn = taxReturns.find((tr) => tr.year === currentYear - 1);
+
+  // Combine documents and tax returns for recent documents view
+  const allDocuments = [
+    ...documents.map((doc) => ({
+      id: doc.id,
+      title: doc.title || doc.doctype,
+      subtitle: `${doc.doctype} • ${doc.year}`,
+      created_at: doc.created_at,
+      type: "document" as const,
+      url: doc.url,
+    })),
+    ...taxReturns.map((tr) => ({
+      id: tr.id,
+      title: tr.title,
+      subtitle: `${tr.form_type} • ${tr.year}`,
+      created_at: tr.created_at,
+      type: "tax_return" as const,
+      url: tr.file_url,
+    })),
+  ]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 5);
 
   const statusConfig = {
     not_started: {
@@ -146,28 +170,43 @@ export default function DashboardTab({
             </div>
 
             <div className="space-y-3">
-              {taxReturns.length > 0 ? (
-                taxReturns.slice(0, 3).map((doc) => (
+              {allDocuments.length > 0 ? (
+                allDocuments.map((doc) => (
                   <div 
-                    key={doc.id}
+                    key={`${doc.type}-${doc.id}`}
                     className="flex items-center justify-between rounded-lg border border-zinc-100 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-800/50"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 dark:bg-red-900/30">
-                        <FileText className="h-5 w-5 text-red-600 dark:text-red-400" />
+                      <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${
+                        doc.type === "document" 
+                          ? "bg-blue-100 dark:bg-blue-900/30" 
+                          : "bg-red-100 dark:bg-red-900/30"
+                      }`}>
+                        <FileText className={`h-5 w-5 ${
+                          doc.type === "document" 
+                            ? "text-blue-600 dark:text-blue-400" 
+                            : "text-red-600 dark:text-red-400"
+                        }`} />
                       </div>
                       <div>
                         <p className="text-sm font-medium text-zinc-900 dark:text-white">
                           {doc.title}
                         </p>
                         <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                          {doc.form_type} • {doc.year}
+                          {doc.subtitle}
                         </p>
                       </div>
                     </div>
-                    <button className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300">
-                      <Download size={16} />
-                    </button>
+                    {doc.url && (
+                      <a 
+                        href={doc.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                      >
+                        <Download size={16} />
+                      </a>
+                    )}
                   </div>
                 ))
               ) : (
