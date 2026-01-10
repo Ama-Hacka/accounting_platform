@@ -89,7 +89,6 @@ export default function AboutPage() {
           <div className="grid gap-8 md:grid-cols-3">
             <div className="group rounded-2xl border border-slate-100 bg-white p-10 shadow-sm transition-transform hover:-translate-y-1 dark:border-slate-800 dark:bg-slate-900">
               <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <span className="material-icons-outlined text-3xl">handshake</span>
               </div>
               <h3 className="mb-4 text-xl font-bold">Trust &amp; Transparency</h3>
               <p className="text-slate-600 dark:text-slate-400">
@@ -99,7 +98,6 @@ export default function AboutPage() {
             </div>
             <div className="group rounded-2xl border border-slate-100 bg-white p-10 shadow-sm transition-transform hover:-translate-y-1 dark:border-slate-800 dark:bg-slate-900">
               <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <span className="material-icons-outlined text-3xl">psychology</span>
               </div>
               <h3 className="mb-4 text-xl font-bold">Innovation</h3>
               <p className="text-slate-600 dark:text-slate-400">
@@ -109,7 +107,6 @@ export default function AboutPage() {
             </div>
             <div className="group rounded-2xl border border-slate-100 bg-white p-10 shadow-sm transition-transform hover:-translate-y-1 dark:border-slate-800 dark:bg-slate-900">
               <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <span className="material-icons-outlined text-3xl">groups</span>
               </div>
               <h3 className="mb-4 text-xl font-bold">Community Focused</h3>
               <p className="text-slate-600 dark:text-slate-400">
