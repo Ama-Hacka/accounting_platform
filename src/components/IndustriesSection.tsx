@@ -15,7 +15,7 @@ const industries = [
   },
   {
     name: "Public Figures / Influencers",
-    image: "/industries/Influencers.webp",
+    image: "/industries/influencers.webp",
     fallbackColor: "from-blue-500 to-cyan-600",
   },
   {
